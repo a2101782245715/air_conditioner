@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Panasonic 冷氣智慧遙控控制台</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              400: '#38bdf8',
+              500: '#0ea5e9',
+              600: '#0284c7',
+            },
+            panel: '#0f172a',
+            card: '#1e293b',
+            cardBorder: '#334155'
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Font: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* 自訂美化捲軸 */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #090d16;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    /* 按鈕點擊觸感縮放 */
+    .btn-press:active {
+      transform: scale(0.96);
+    }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-slate-100 min-h-screen pb-16 antialiased selection:bg-sky-500 selection:text-white">
+
+  <!-- 全域 Toast 通知容器 -->
+  <div id="toastContainer" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-3"></div>
+
+  <!-- 自訂彈窗模態框 (取代被禁用的 alert/confirm) -->
+  <div id="customModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm hidden p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center gap-3">
+        <div id="modalIcon" class="w-10 h-10 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold text-lg">ℹ️</div>
+        <h3 id="modalTitle" class="text-base font-bold text-white">通知</h3>
+      </div>
+      <p id="modalMsg" class="text-sm text-slate-300 leading-relaxed"></p>
+      <div class="flex justify-end gap-3 pt-2">
+        <button id="modalBtnCancel" class="hidden px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700 transition">取消</button>
+        <button id="modalBtnConfirm" class="px-5 py-2 rounded-xl bg-sky-600 text-white text-xs font-semibold hover:bg-sky-500 transition">確定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 頂部標題與連線狀態工具列 -->
+  <header class="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3 sm:px-6">
+    <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20 text-white font-bold text-xl">
+          ❄️
+        </div>
+        <div>
+          <h1 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+            Panasonic 冷氣定時遙控端
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-sky-950 text-sky-300 border border-sky-800/80">USB / BLE 雙模</span>
+          </h1>
+          <p class="text-[11px] text-slate-400">Nano + DS3231 + VS1838B + HM-10</p>
+        </div>
+      </div>
+
+      <!-- 連線操作按鈕群 -->
+      <div class="flex items-center gap-2 flex-wrap">
+        <div id="connBadge" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300">
+          <span id="connDot" class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+          <span id="connText">未連線</span>
+        </div>
+
+        <button id="btnConnectSerial" class="btn-press px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-sky-400 flex items-center gap-1.5 transition">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          USB 序列埠
+        </button>
+
+        <button id="btnConnectBle" class="btn-press px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-xs font-semibold text-white flex items-center gap-1.5 shadow-md shadow-sky-600/30 transition">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+          HM-10 藍牙
+        </button>
+
+        <button id="btnDisconnect" class="btn-press hidden px-3 py-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-900 border border-rose-800 text-xs font-semibold text-rose-300 transition">
+          中斷連線
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6 sm:px-6 space-y-6">
+
+    <!-- 頂部即時硬體狀態列 -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div class="bg-card border border-cardBorder rounded-xl p-3 flex items-center gap-3">
+        <div class="p-2 rounded-lg bg-sky-500/10 text-sky-400 text-lg">🕒</div>
+        <div>
+          <div class="text-[10px] text-slate-400 font-medium">板載 RTC 時間</div>
+          <div id="statusRtcTime" class="text-xs sm:text-sm font-bold text-white font-mono">未同步</div>
+        </div>
+      </div>
+
+      <div class="bg-card border border-cardBorder rounded-xl p-3 flex items-center gap-3">
+        <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 text-lg">⏰</div>
+        <div>
+          <div class="text-[10px] text-slate-400 font-medium">脫機定時排程</div>
+          <div id="statusSchedMode" class="text-xs sm:text-sm font-bold text-slate-400">停用</div>
+        </div>
+      </div>
+
+      <div class="bg-card border border-cardBorder rounded-xl p-3 flex items-center gap-3">
+        <div class="p-2 rounded-lg bg-amber-500/10 text-amber-400 text-lg">💾</div>
+        <div>
+          <div class="text-[10px] text-slate-400 font-medium">學習槽 0 (開機)</div>
+          <div id="statusSlot0" class="text-xs sm:text-sm font-bold text-slate-400">空白</div>
+        </div>
+      </div>
+
+      <div class="bg-card border border-cardBorder rounded-xl p-3 flex items-center gap-3">
+        <div class="p-2 rounded-lg bg-purple-500/10 text-purple-400 text-lg">💾</div>
+        <div>
+          <div class="text-[10px] text-slate-400 font-medium">學習槽 1 (關機)</div>
+          <div id="statusSlot1" class="text-xs sm:text-sm font-bold text-slate-400">空白</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 主要雙欄排版 -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- 左側：冷氣操控核心 + 定時排程 + RTC 校時 (佔 7 欄) -->
+      <div class="lg:col-span-7 space-y-6">
+
+        <!-- 卡片 1: 即時冷氣遙控面板 -->
+        <section class="bg-card border border-cardBorder rounded-2xl p-5 shadow-lg relative overflow-hidden">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-700/60">
+            <div class="flex items-center gap-2">
+              <span class="p-1.5 rounded-lg bg-sky-500/10 text-sky-400 text-sm font-bold">1</span>
+              <h2 class="text-sm sm:text-base font-bold text-white">冷氣即時操控</h2>
+            </div>
+            <span class="text-[11px] text-slate-400">發射 Panasonic AC 協議或學習槽</span>
+          </div>
+
+          <div class="mt-4 space-y-5">
+            <!-- 溫度設定 (直接輸入 + 範圍驗證 + 步進器) -->
+            <div>
+              <div class="flex items-center justify-between mb-1.5">
+                <label class="text-xs font-semibold text-slate-300">設定溫度 (範圍限制：16°C ~ 30°C)</label>
+                <span id="tempValidationTip" class="text-[11px] text-sky-400 font-medium"></span>
+              </div>
+              <div class="flex items-center gap-3">
+                <button id="btnTempMinus" class="btn-press w-12 h-12 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-400 font-bold text-2xl border border-slate-700 flex items-center justify-center transition">
+                  −
+                </button>
+                <div class="flex-1 relative flex items-center justify-center bg-slate-900 border border-slate-700 rounded-xl px-4 py-1.5">
+                  <input id="inputTemp" type="number" min="16" max="30" value="26" step="1"
+                    class="w-20 text-center font-bold text-3xl sm:text-4xl bg-transparent text-white font-mono focus:outline-none focus:text-sky-400" />
+                  <span class="text-base font-bold text-slate-400 ml-1">°C</span>
+                </div>
+                <button id="btnTempPlus" class="btn-press w-12 h-12 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-400 font-bold text-2xl border border-slate-700 flex items-center justify-center transition">
+                  +
+                </button>
+              </div>
+              <p class="text-[11px] text-slate-500 mt-1 text-center">可點選輸入框直接鍵盤打字，數值失焦後自動校正於 16~30 之間</p>
+            </div>
+
+            <!-- 風量切換 (強、中、弱、自動) -->
+            <div>
+              <label class="text-xs font-semibold text-slate-300 block mb-2">風量選擇 (Fan Speed)</label>
+              <div class="grid grid-cols-4 gap-2">
+                <button data-fan="0" class="fan-btn btn-press py-2.5 rounded-xl text-xs font-semibold bg-sky-600 text-white border border-sky-400 shadow-md shadow-sky-600/20 transition">
+                  💨 自動
+                </button>
+                <button data-fan="1" class="fan-btn btn-press py-2.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition">
+                  🍃 弱風
+                </button>
+                <button data-fan="3" class="fan-btn btn-press py-2.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition">
+                  🌪️ 中風
+                </button>
+                <button data-fan="5" class="fan-btn btn-press py-2.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition">
+                  ⚡ 強風
+                </button>
+              </div>
+            </div>
+
+            <!-- 運轉模式 (冷氣、除濕、暖氣、自動) -->
+            <div>
+              <label class="text-xs font-semibold text-slate-300 block mb-2">運轉模式 (Mode)</label>
+              <div class="grid grid-cols-4 gap-2">
+                <button data-mode="1" class="mode-btn btn-press py-2 rounded-xl text-xs font-semibold bg-sky-600 text-white border border-sky-400 transition">
+                  ❄️ 冷氣
+                </button>
+                <button data-mode="2" class="mode-btn btn-press py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition">
+                  💧 除濕
+                </button>
+                <button data-mode="3" class="mode-btn btn-press py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition">
+                  ☀️ 暖氣
+                </button>
+                <button data-mode="0" class="mode-btn btn-press py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition">
+                  🔄 自動
+                </button>
+              </div>
+            </div>
+
+            <!-- 動作發送按鈕組 -->
+            <div class="pt-2 border-t border-slate-700/60 grid grid-cols-2 gap-3">
+              <button id="btnSendAcOn" class="btn-press py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white text-xs sm:text-sm font-bold shadow-lg shadow-emerald-900/30 flex items-center justify-center gap-2 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                發射開機 (AC_CMD)
+              </button>
+              <button id="btnSendAcOff" class="btn-press py-3 rounded-xl bg-slate-800 hover:bg-rose-950/60 hover:text-rose-300 border border-slate-700 text-slate-200 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 4.243a9 9 0 01-12.728 0m0 0l2.829-2.829m-2.829 2.829L3 21m2.828-15.536a9 9 0 0112.728 0m-4.242 4.242a5 5 0 00-7.072 0"/></svg>
+                發射關機 (AC_OFF)
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 卡片 2: 24 小時制定時開關機排程管理 -->
+        <section class="bg-card border border-cardBorder rounded-2xl p-5 shadow-lg space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-700/60">
+            <div class="flex items-center gap-2">
+              <span class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-sm font-bold">2</span>
+              <div>
+                <h2 class="text-sm sm:text-base font-bold text-white">定時開關機排程 (24H)</h2>
+                <p class="text-[11px] text-slate-400">寫入 EEPROM，斷電/斷線後由 DS3231 脫機獨立觸發</p>
+              </div>
+            </div>
+
+            <!-- 排程總啟用開關 Toggle -->
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="toggleSched" class="sr-only peer">
+              <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:width-5 after:transition-all peer-checked:bg-emerald-600"></div>
+            </label>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <!-- 開機時間 -->
+            <div class="bg-slate-900/70 border border-slate-700 rounded-xl p-3.5">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  每日開機時間
+                </span>
+                <span class="text-[10px] text-slate-400">24 小時制 (HH:MM)</span>
+              </div>
+              <input type="time" id="inputOnTime" value="20:00" step="60"
+                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono text-base focus:outline-none focus:border-emerald-500" />
+            </div>
+
+            <!-- 關機時間 -->
+            <div class="bg-slate-900/70 border border-slate-700 rounded-xl p-3.5">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-xs font-semibold text-rose-400 flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+                  每日關機時間
+                </span>
+                <span class="text-[10px] text-slate-400">24 小時制 (HH:MM)</span>
+              </div>
+              <input type="time" id="inputOffTime" value="08:00" step="60"
+                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono text-base focus:outline-none focus:border-rose-500" />
+            </div>
+          </div>
+
+          <!-- 排程觸發來源選擇 -->
+          <div class="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3 space-y-2">
+            <span class="text-xs font-semibold text-slate-300 block">排程觸發發射方式：</span>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="flex items-center gap-2 bg-slate-800/80 hover:bg-slate-800 p-2.5 rounded-lg border border-slate-700 cursor-pointer text-xs text-slate-200 transition">
+                <input type="radio" name="schedMode" value="0" checked class="text-sky-500 focus:ring-0">
+                <span>優先重播錄製槽 (Slot 0/1)</span>
+              </label>
+              <label class="flex items-center gap-2 bg-slate-800/80 hover:bg-slate-800 p-2.5 rounded-lg border border-slate-700 cursor-pointer text-xs text-slate-200 transition">
+                <input type="radio" name="schedMode" value="1" class="text-sky-500 focus:ring-0">
+                <span>使用 Panasonic 協議合成</span>
+              </label>
+            </div>
+          </div>
+
+          <button id="btnSaveSchedule" class="btn-press w-full py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md shadow-sky-600/20 transition">
+            💾 儲存並寫入定時排程至板子 (SET_SCHED)
+          </button>
+        </section>
+
+        <!-- 卡片 3: DS3231 時間校正與設定 -->
+        <section class="bg-card border border-cardBorder rounded-2xl p-5 shadow-lg space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-700/60">
+            <div class="flex items-center gap-2">
+              <span class="p-1.5 rounded-lg bg-purple-500/10 text-purple-400 text-sm font-bold">3</span>
+              <div>
+                <h2 class="text-sm sm:text-base font-bold text-white">DS3231 時間校正 (24H)</h2>
+                <p class="text-[11px] text-slate-400">校準硬體時鐘，確保脫機定時分秒不差</p>
+              </div>
+            </div>
+            <button id="btnSyncPhoneTime" class="btn-press px-2.5 py-1 rounded-lg bg-purple-950/60 hover:bg-purple-900 border border-purple-700/80 text-[11px] font-semibold text-purple-300 transition">
+              ⚡ 填入手機現在時間
+            </button>
+          </div>
+
+          <div class="space-y-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs text-slate-300 block mb-1">校正日期 (YYYY-MM-DD)</label>
+                <input type="date" id="inputRtcDate" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-purple-500" />
+              </div>
+              <div>
+                <label class="text-xs text-slate-300 block mb-1">校正時間 (24小時制 HH:MM:SS)</label>
+                <input type="time" id="inputRtcTime" step="1" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-purple-500" />
+              </div>
+            </div>
+
+            <button id="btnSendRtcCalibrate" class="btn-press w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md shadow-purple-600/20 transition">
+              🎯 寫入並校正板子時鐘 (SET_TIME)
+            </button>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- 右側：學習槽原樣錄製 + 診斷除錯監控台 (佔 5 欄) -->
+      <div class="lg:col-span-5 space-y-6">
+
+        <!-- 卡片 4: 遙控器紅外線學習槽 (原樣重播) -->
+        <section class="bg-card border border-cardBorder rounded-2xl p-5 shadow-lg space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-700/60">
+            <div class="flex items-center gap-2">
+              <span class="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 text-sm font-bold">4</span>
+              <div>
+                <h2 class="text-sm sm:text-base font-bold text-white">原裝遙控器波形學習</h2>
+                <p class="text-[11px] text-slate-400">對準 VS1838B 錄音，老舊冷氣 100% 相容</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 槽位 0：開機波形 -->
+          <div class="bg-slate-900/80 border border-slate-700/80 rounded-xl p-3.5 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-200">槽位 0 (開機專用槽)</span>
+              <span id="badgeSlot0" class="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400">空白未錄製</span>
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+              <button data-record-slot="0" class="btn-press py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition flex items-center justify-center gap-1">
+                🎙️ 錄製
+              </button>
+              <button data-play-slot="0" class="btn-press py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-bold transition flex items-center justify-center gap-1">
+                ▶️ 測試發射
+              </button>
+              <button data-clear-slot="0" class="btn-press py-2 rounded-lg bg-slate-800 hover:bg-rose-950/40 hover:text-rose-300 border border-slate-700 text-slate-400 text-xs font-bold transition">
+                🗑️ 清空
+              </button>
+            </div>
+          </div>
+
+          <!-- 槽位 1：關機波形 -->
+          <div class="bg-slate-900/80 border border-slate-700/80 rounded-xl p-3.5 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-200">槽位 1 (關機專用槽)</span>
+              <span id="badgeSlot1" class="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400">空白未錄製</span>
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+              <button data-record-slot="1" class="btn-press py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition flex items-center justify-center gap-1">
+                🎙️ 錄製
+              </button>
+              <button data-play-slot="1" class="btn-press py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-bold transition flex items-center justify-center gap-1">
+                ▶️ 測試發射
+              </button>
+              <button data-clear-slot="1" class="btn-press py-2 rounded-lg bg-slate-800 hover:bg-rose-950/40 hover:text-rose-300 border border-slate-700 text-slate-400 text-xs font-bold transition">
+                🗑️ 清空
+              </button>
+            </div>
+          </div>
+
+          <div id="recordingIndicator" class="hidden bg-amber-950/50 border border-amber-500/50 rounded-xl p-3 text-center animate-pulse">
+            <div class="text-xs font-bold text-amber-300">🔴 正在錄音待命中...</div>
+            <div class="text-[11px] text-amber-200 mt-1">請將原裝遙控器對準板子 VS1838B 按下開關鈕（剩餘 <span id="recCountdown">15</span> 秒）</div>
+            <button id="btnStopRecording" class="mt-2 px-3 py-1 bg-rose-600 hover:bg-rose-500 text-white text-xs rounded-lg font-semibold">
+              強制停止錄製
+            </button>
+          </div>
+        </section>
+
+        <!-- 卡片 5: 監視介面 (通訊成果監控與快速除錯) -->
+        <section class="bg-card border border-cardBorder rounded-2xl p-5 shadow-lg space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-700/60">
+            <div class="flex items-center gap-2">
+              <span class="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 text-sm font-bold">5</span>
+              <div>
+                <h2 class="text-sm sm:text-base font-bold text-white">通訊監視與除錯終端</h2>
+                <p class="text-[11px] text-slate-400">檢查板子連線成果、紅外發射 ACK 與除錯日誌</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button id="btnPingStatus" class="btn-press px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-semibold text-sky-400 transition">
+                ⚡ 測試 PING
+              </button>
+              <button id="btnClearLog" class="text-slate-400 hover:text-slate-200 text-xs p-1" title="清空日誌">
+                🧹
+              </button>
+            </div>
+          </div>
+
+          <!-- 終端日誌輸出框 -->
+          <div class="relative">
+            <div id="terminalLog" class="w-full h-56 bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-[11px] overflow-y-auto space-y-1 select-text">
+              <div class="text-slate-500">// 系統就緒，請點擊上方按鈕透過 USB 序列埠或 HM-10 藍牙建立連線...</div>
+            </div>
+          </div>
+
+          <!-- 手動命令輸入器 -->
+          <div class="flex gap-2">
+            <input type="text" id="inputManualCmd" placeholder="例如: STATUS 或 AC_ON:26"
+              class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-xs focus:outline-none focus:border-sky-500" />
+            <button id="btnSendManualCmd" class="btn-press px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-300 text-xs font-bold transition">
+              傳送
+            </button>
+          </div>
+
+          <!-- 除錯診斷提示折疊區 -->
+          <details class="text-[11px] text-slate-400 bg-slate-900/60 p-3 rounded-xl border border-slate-800">
+            <summary class="cursor-pointer font-semibold text-slate-300">💡 冷氣無反應時的自我檢測清單</summary>
+            <ul class="list-disc pl-4 mt-2 space-y-1 text-slate-400">
+              <li><strong class="text-slate-200">終端是否有 ACK：</strong>若發送開機後終端無 <code class="text-sky-300 font-mono">ACK:AC_SENT</code>，代表指令未送進板子。</li>
+              <li><strong class="text-slate-200">老機種協議相容：</strong>舊型 Panasonic 冷氣請務必使用「學習槽錄製」進行測試，因舊型遙控可能採用 160-bit 訊號。</li>
+              <li><strong class="text-slate-200">發射管電氣準位：</strong>紅外線 LED 發射距離需小於 3 公尺，建議透過三極管 (如 2N2222/S8050) 放大電流驅動。</li>
+              <li><strong class="text-slate-200">RTC 離線時間：</strong>請檢查板載 RTC 是否顯示當前正確時間，否則定時排程將在錯誤的時間點觸發。</li>
+            </ul>
+          </details>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // ==========================================
+    // 1. 全域狀態管理與設定
+    // ==========================================
+    const HM10_SERVICE_UUID = '0000ffe0-0000-1000-8000-00805f9b34fb';
+    const HM10_CHAR_UUID    = '0000ffe1-0000-1000-8000-00805f9b34fb';
+
+    const state = {
+      connType: null, // 'serial' | 'ble' | null
+      serialPort: null,
+      serialReader: null,
+      serialWriter: null,
+      bleDevice: null,
+      bleServer: null,
+      bleChar: null,
+      currentTemp: 26,
+      currentFan: 0,      // 0: Auto, 1: Low, 3: Mid, 5: High
+      currentMode: 1,     // 0: Auto, 1: Cool, 2: Dry, 3: Heat
+      schedEnabled: false,
+      onTime: '20:00',
+      offTime: '08:00',
+      schedMode: 0,
+      slot0Valid: false,
+      slot1Valid: false,
+      isRecording: false,
+      recTimer: null,
+    };
+
+    // ==========================================
+    // 2. 自訂 UI 輔助工具 (Toast 與 模態彈窗)
+    // ==========================================
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      
+      const colors = {
+        info: 'bg-slate-900 border-sky-500/80 text-sky-200',
+        success: 'bg-slate-900 border-emerald-500/80 text-emerald-200',
+        warn: 'bg-slate-900 border-amber-500/80 text-amber-200',
+        error: 'bg-slate-900 border-rose-500/80 text-rose-200',
+      };
+      const icons = { info: '💡', success: '✅', warn: '⚠️', error: '❌' };
+
+      toast.className = `flex items-center gap-2.5 px-4 py-3 rounded-xl border shadow-xl text-xs font-medium backdrop-blur-md transition-all duration-300 transform translate-y-2 opacity-0 pointer-events-auto ${colors[type] || colors.info}`;
+      toast.innerHTML = `<span>${icons[type] || 'ℹ️'}</span><span class="flex-1">${message}</span>`;
+      container.appendChild(toast);
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    function showModal(title, msg, isConfirm = false, onConfirm = null) {
+      const modal = document.getElementById('customModal');
+      const titleEl = document.getElementById('modalTitle');
+      const msgEl = document.getElementById('modalMsg');
+      const btnCancel = document.getElementById('modalBtnCancel');
+      const btnConfirm = document.getElementById('modalBtnConfirm');
+
+      titleEl.innerText = title;
+      msgEl.innerText = msg;
+      btnCancel.classList.toggle('hidden', !isConfirm);
+
+      modal.classList.remove('hidden');
+
+      const cleanup = () => {
+        modal.classList.add('hidden');
+        btnConfirm.onclick = null;
+        btnCancel.onclick = null;
+      };
+
+      btnConfirm.onclick = () => {
+        cleanup();
+        if (onConfirm) onConfirm();
+      };
+      btnCancel.onclick = cleanup;
+    }
+
+    // ==========================================
+    // 3. 通訊監視日誌列印
+    // ==========================================
+    function appendLog(direction, text) {
+      const terminal = document.getElementById('terminalLog');
+      const line = document.createElement('div');
+      const now = new Date();
+      const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+
+      if (direction === 'TX') {
+        line.className = 'text-amber-300';
+        line.innerHTML = `<span class="text-slate-500">[${timeStr}]</span> <span class="font-bold text-amber-400">TX ▶</span> ${escapeHtml(text)}`;
+      } else if (direction === 'RX') {
+        line.className = 'text-emerald-300';
+        line.innerHTML = `<span class="text-slate-500">[${timeStr}]</span> <span class="font-bold text-emerald-400">RX ◀</span> ${escapeHtml(text)}`;
+      } else {
+        line.className = 'text-sky-400';
+        line.innerHTML = `<span class="text-slate-500">[${timeStr}]</span> <span class="font-bold text-sky-400">SYS ℹ</span> ${escapeHtml(text)}`;
+      }
+
+      terminal.appendChild(line);
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // ==========================================
+    // 4. Web Serial (USB) 與 Web Bluetooth (HM-10) 統一收發引擎
+    // ==========================================
+    async function sendCommand(cmdStr) {
+      cmdStr = cmdStr.trim();
+      if (!cmdStr) return;
+      if (!state.connType) {
+        showToast('請先點擊上方按鈕連接 USB 序列埠或 HM-10 藍牙', 'warn');
+        return;
+      }
+
+      const formatted = cmdStr + '\n';
+      appendLog('TX', cmdStr);
+
+      try {
+        if (state.connType === 'serial' && state.serialWriter) {
+          const encoder = new TextEncoder();
+          await state.serialWriter.write(encoder.encode(formatted));
+        } else if (state.connType === 'ble' && state.bleChar) {
+          // HM-10 BLE 需考慮分包（通常每次寫入不超過 20 Bytes）
+          const encoder = new TextEncoder();
+          const bytes = encoder.encode(formatted);
+          const chunkSize = 20;
+          for (let i = 0; i < bytes.length; i += chunkSize) {
+            const chunk = bytes.slice(i, i + chunkSize);
+            if (state.bleChar.writeValueWithoutResponse) {
+              await state.bleChar.writeValueWithoutResponse(chunk);
+            } else {
+              await state.bleChar.writeValue(chunk);
+            }
+            if (bytes.length > chunkSize) {
+              await new Promise(r => setTimeout(r, 25)); // 間隔 25ms 避免擠爆緩衝
+            }
+          }
+        }
+      } catch (err) {
+        console.error('發送指令失敗:', err);
+        appendLog('SYS', `傳送失敗: ${err.message}`);
+        showToast(`指令傳送失敗: ${err.message}`, 'error');
+      }
+    }
+
+    // USB 序列埠連線
+    async function connectSerial() {
+      if (!navigator.serial) {
+        showModal('瀏覽器不支援', '此瀏覽器不支援 Web Serial API，請使用 Google Chrome 或 Edge 瀏覽器（Android 手機請使用 Chrome + USB OTG 轉接線）。');
+        return;
+      }
+
+      try {
+        const port = await navigator.serial.requestPort();
+        await port.open({ baudRate: 9600 });
+        
+        state.serialPort = port;
+        state.connType = 'serial';
+        state.serialWriter = port.writable.getWriter();
+
+        updateConnectionUI('serial', 'USB 序列埠已連線 (9600 bps)');
+        appendLog('SYS', '已成功開啟 USB 序列埠 (9600 Baud)');
+        showToast('USB 序列埠已成功連線！', 'success');
+
+        // 背景讀取迴圈
+        readSerialLoop();
+
+        // 握手並獲取目前硬體狀態
+        setTimeout(() => sendCommand('STATUS'), 500);
+      } catch (err) {
+        if (err.name !== 'NotFoundError') {
+          console.error(err);
+          showToast(`序列埠連線失敗: ${err.message}`, 'error');
+        }
+      }
+    }
+
+    async function readSerialLoop() {
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (state.serialPort && state.serialPort.readable) {
+        try {
+          state.serialReader = state.serialPort.readable.getReader();
+          while (true) {
+            const { value, done } = await state.serialReader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            
+            let lines = buffer.split('\n');
+            buffer = lines.pop(); // 保留尚未結尾的半包
+
+            for (const line of lines) {
+              const clean = line.trim();
+              if (clean) handleIncomingLine(clean);
+            }
+          }
+        } catch (err) {
+          console.warn('序列埠讀取中斷:', err);
+          break;
+        } finally {
+          if (state.serialReader) {
+            state.serialReader.releaseLock();
+            state.serialReader = null;
+          }
+        }
+      }
+      disconnect();
+    }
+
+    // HM-10 Web Bluetooth 連線
+    async function connectBle() {
+      if (!navigator.bluetooth) {
+        showModal('瀏覽器不支援', '此瀏覽器不支援 Web Bluetooth API。推薦使用 Android Chrome 瀏覽器，或 iOS 上的 Bluefy 專用藍牙瀏覽器。');
+        return;
+      }
+
+      try {
+        appendLog('SYS', '正在掃描 HM-10 藍牙裝置...');
+        const device = await navigator.bluetooth.requestDevice({
+          acceptAllDevices: true,
+          optionalServices: [HM10_SERVICE_UUID, 0xffe0]
+        });
+
+        device.addEventListener('gattserverdisconnected', onBleDisconnected);
+        const server = await device.gatt.connect();
+        
+        let service;
+        try {
+          service = await server.getPrimaryService(HM10_SERVICE_UUID);
+        } catch (e) {
+          service = await server.getPrimaryService(0xffe0);
+        }
+
+        let characteristic;
+        try {
+          characteristic = await service.getCharacteristic(HM10_CHAR_UUID);
+        } catch (e) {
+          characteristic = await service.getCharacteristic(0xffe1);
+        }
+
+        await characteristic.startNotifications();
+        let bleBuffer = '';
+        const decoder = new TextDecoder();
+
+        characteristic.addEventListener('characteristicvaluechanged', (event) => {
+          const val = event.target.value;
+          bleBuffer += decoder.decode(val);
+          let lines = bleBuffer.split('\n');
+          bleBuffer = lines.pop();
+
+          for (const line of lines) {
+            const clean = line.trim();
+            if (clean) handleIncomingLine(clean);
+          }
+        });
+
+        state.bleDevice = device;
+        state.bleServer = server;
+        state.bleChar = characteristic;
+        state.connType = 'ble';
+
+        updateConnectionUI('ble', `HM-10 [${device.name || 'BT'}] 已連線`);
+        appendLog('SYS', `已連接至藍牙裝置: ${device.name || 'Unnamed'}`);
+        showToast('HM-10 藍牙已成功連線！', 'success');
+
+        // 握手並獲取狀態
+        setTimeout(() => sendCommand('STATUS'), 500);
+      } catch (err) {
+        if (err.name !== 'NotFoundError') {
+          console.error('BLE 連線失敗:', err);
+          showToast(`藍牙連線失敗: ${err.message}`, 'error');
+        }
+      }
+    }
+
+    function onBleDisconnected() {
+      appendLog('SYS', 'HM-10 藍牙已中斷連線');
+      showToast('HM-10 藍牙連線已中斷', 'warn');
+      disconnect();
+    }
+
+    async function disconnect() {
+      if (state.serialWriter) {
+        try { await state.serialWriter.close(); } catch(e){}
+        state.serialWriter = null;
+      }
+      if (state.serialReader) {
+        try { await state.serialReader.cancel(); } catch(e){}
+        state.serialReader = null;
+      }
+      if (state.serialPort) {
+        try { await state.serialPort.close(); } catch(e){}
+        state.serialPort = null;
+      }
+      if (state.bleDevice && state.bleDevice.gatt.connected) {
+        try { state.bleDevice.gatt.disconnect(); } catch(e){}
+      }
+
+      state.connType = null;
+      state.bleDevice = null;
+      state.bleServer = null;
+      state.bleChar = null;
+
+      updateConnectionUI(null, '未連線');
+      appendLog('SYS', '連線已完全關閉');
+    }
+
+    function updateConnectionUI(type, label) {
+      const badge = document.getElementById('connBadge');
+      const dot = document.getElementById('connDot');
+      const text = document.getElementById('connText');
+      const btnDisconnect = document.getElementById('btnDisconnect');
+      const btnSerial = document.getElementById('btnConnectSerial');
+      const btnBle = document.getElementById('btnConnectBle');
+
+      if (type) {
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse';
+        text.innerText = label;
+        btnDisconnect.classList.remove('hidden');
+        btnSerial.classList.add('opacity-50');
+        btnBle.classList.add('opacity-50');
+      } else {
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
+        text.innerText = '未連線';
+        btnDisconnect.classList.add('hidden');
+        btnSerial.classList.remove('opacity-50');
+        btnBle.classList.remove('opacity-50');
+      }
+    }
+
+    // ==========================================
+    // 5. 下位機韌體回傳指令解析引擎
+    // ==========================================
+    function handleIncomingLine(line) {
+      appendLog('RX', line);
+
+      // 解析 STATUS 狀態廣播
+      // STATUS:TIME=2026/09/06 20:30:00|RTC=1|SCHED=1|ON=20:00|OFF=08:00|SMODE=0|TEMP=26|ACMODE=1|FAN=0|SLOT0=1|SLOT1=1
+      if (line.startsWith('STATUS:')) {
+        const payload = line.substring(7);
+        const parts = payload.split('|');
+        const map = {};
+        for (const p of parts) {
+          const [k, v] = p.split('=');
+          if (k && v !== undefined) map[k.trim()] = v.trim();
+        }
+
+        // 更新 RTC 時間顯示
+        if (map['TIME']) {
+          document.getElementById('statusRtcTime').innerText = map['TIME'].split(' ')[1] || map['TIME'];
+        }
+
+        // 更新定時排程資訊
+        if (map['SCHED'] !== undefined) {
+          const isEn = map['SCHED'] === '1';
+          state.schedEnabled = isEn;
+          document.getElementById('toggleSched').checked = isEn;
+          const modeLabel = isEn ? '啟用中' : '已停用';
+          document.getElementById('statusSchedMode').innerText = `${modeLabel} (${map['ON'] || '--'} ~ ${map['OFF'] || '--'})`;
+          document.getElementById('statusSchedMode').className = `text-xs sm:text-sm font-bold ${isEn ? 'text-emerald-400' : 'text-slate-400'}`;
+        }
+
+        if (map['ON']) document.getElementById('inputOnTime').value = map['ON'];
+        if (map['OFF']) document.getElementById('inputOffTime').value = map['OFF'];
+
+        // 排程觸發方式
+        if (map['SMODE'] !== undefined) {
+          state.schedMode = parseInt(map['SMODE']);
+          const radios = document.getElementsByName('schedMode');
+          for (const r of radios) {
+            r.checked = (r.value === map['SMODE']);
+          }
+        }
+
+        // 溫度與風量模式同步
+        if (map['TEMP']) {
+          state.currentTemp = parseInt(map['TEMP']);
+          document.getElementById('inputTemp').value = state.currentTemp;
+        }
+        if (map['FAN']) {
+          state.currentFan = parseInt(map['FAN']);
+          updateFanButtons(state.currentFan);
+        }
+        if (map['ACMODE']) {
+          state.currentMode = parseInt(map['ACMODE']);
+          updateModeButtons(state.currentMode);
+        }
+
+        // 學習槽狀態
+        if (map['SLOT0']) {
+          state.slot0Valid = (map['SLOT0'] === '1');
+          updateSlotBadge(0, state.slot0Valid);
+        }
+        if (map['SLOT1']) {
+          state.slot1Valid = (map['SLOT1'] === '1');
+          updateSlotBadge(1, state.slot1Valid);
+        }
+      } 
+      // 處理事件反饋
+      else if (line.startsWith('EVENT:REC_START:')) {
+        const slot = line.split(':')[2];
+        startRecordingUI(slot);
+      } else if (line.startsWith('EVENT:REC_SUCCESS:')) {
+        stopRecordingUI();
+        showToast('紅外線訊號錄製並儲存成功！', 'success');
+        sendCommand('STATUS');
+      } else if (line.startsWith('EVENT:REC_TIMEOUT:')) {
+        stopRecordingUI();
+        showToast('錄音逾時：15 秒內未偵測到紅外線訊號', 'warn');
+      } else if (line.startsWith('EVENT:REC_STOPPED:')) {
+        stopRecordingUI();
+      } else if (line.startsWith('ACK:TIME_UPDATED')) {
+        showToast('時鐘校正成功！', 'success');
+      } else if (line.startsWith('ACK:SCHED_UPDATED')) {
+        showToast('排程設定已成功寫入 EEPROM！', 'success');
+      } else if (line.startsWith('ACK:AC_SENT')) {
+        showToast('冷氣紅外線指令已成功發射！', 'success');
+      } else if (line.startsWith('ACK:PLAYED_SLOT:')) {
+        showToast(`學習槽 ${line.split(':')[2]} 原裝波形發射成功！`, 'success');
+      } else if (line.startsWith('ERR:SLOT_EMPTY:')) {
+        showToast(`該槽位尚未錄製任何遙控器訊號`, 'warn');
+      }
+    }
+
+    function updateSlotBadge(slot, isValid) {
+      const badge = document.getElementById(`badgeSlot${slot}`);
+      const statusEl = document.getElementById(`statusSlot${slot}`);
+      if (isValid) {
+        badge.innerText = '已就緒 (有波形)';
+        badge.className = 'text-[10px] px-2 py-0.5 rounded-md bg-emerald-950 text-emerald-300 border border-emerald-800';
+        statusEl.innerText = '已儲存';
+        statusEl.className = 'text-xs sm:text-sm font-bold text-emerald-400';
+      } else {
+        badge.innerText = '空白未錄製';
+        badge.className = 'text-[10px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400';
+        statusEl.innerText = '空白';
+        statusEl.className = 'text-xs sm:text-sm font-bold text-slate-400';
+      }
+    }
+
+    function startRecordingUI(slot) {
+      state.isRecording = true;
+      const indicator = document.getElementById('recordingIndicator');
+      const countdownEl = document.getElementById('recCountdown');
+      indicator.classList.remove('hidden');
+      
+      let sec = 15;
+      countdownEl.innerText = sec;
+      clearInterval(state.recTimer);
+      state.recTimer = setInterval(() => {
+        sec--;
+        countdownEl.innerText = sec;
+        if (sec <= 0) {
+          clearInterval(state.recTimer);
+        }
+      }, 1000);
+    }
+
+    function stopRecordingUI() {
+      state.isRecording = false;
+      clearInterval(state.recTimer);
+      document.getElementById('recordingIndicator').classList.add('hidden');
+    }
+
+    // ==========================================
+    // 6. DOM 介面事件綁定與數值驗證
+    // ==========================================
+    function sanitizeTemp(val) {
+      let num = parseInt(val, 10);
+      if (isNaN(num)) num = 26;
+      if (num < 16) num = 16;
+      if (num > 30) num = 30;
+      return num;
+    }
+
+    function updateFanButtons(fan) {
+      document.querySelectorAll('.fan-btn').forEach(btn => {
+        const f = parseInt(btn.getAttribute('data-fan'));
+        if (f === fan) {
+          btn.className = 'fan-btn btn-press py-2.5 rounded-xl text-xs font-semibold bg-sky-600 text-white border border-sky-400 shadow-md shadow-sky-600/20 transition';
+        } else {
+          btn.className = 'fan-btn btn-press py-2.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition';
+        }
+      });
+    }
+
+    function updateModeButtons(mode) {
+      document.querySelectorAll('.mode-btn').forEach(btn => {
+        const m = parseInt(btn.getAttribute('data-mode'));
+        if (m === mode) {
+          btn.className = 'mode-btn btn-press py-2 rounded-xl text-xs font-semibold bg-sky-600 text-white border border-sky-400 transition';
+        } else {
+          btn.className = 'mode-btn btn-press py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition';
+        }
+      });
+    }
+
+    // 初始化網頁元件事件
+    window.addEventListener('DOMContentLoaded', () => {
+      // 1. 連線相關按鈕
+      document.getElementById('btnConnectSerial').addEventListener('click', connectSerial);
+      document.getElementById('btnConnectBle').addEventListener('click', connectBle);
+      document.getElementById('btnDisconnect').addEventListener('click', disconnect);
+
+      // 2. 溫度控制：步進器與直接輸入
+      const tempInput = document.getElementById('inputTemp');
+      const tempTip = document.getElementById('tempValidationTip');
+
+      tempInput.addEventListener('change', () => {
+        const sanitized = sanitizeTemp(tempInput.value);
+        if (parseInt(tempInput.value) !== sanitized) {
+          tempTip.innerText = `已校正為 ${sanitized}°C`;
+          setTimeout(() => tempTip.innerText = '', 2000);
+        }
+        tempInput.value = sanitized;
+        state.currentTemp = sanitized;
+      });
+
+      document.getElementById('btnTempMinus').addEventListener('click', () => {
+        state.currentTemp = sanitizeTemp(state.currentTemp - 1);
+        tempInput.value = state.currentTemp;
+      });
+
+      document.getElementById('btnTempPlus').addEventListener('click', () => {
+        state.currentTemp = sanitizeTemp(state.currentTemp + 1);
+        tempInput.value = state.currentTemp;
+      });
+
+      // 3. 風量與模式選擇
+      document.querySelectorAll('.fan-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.currentFan = parseInt(btn.getAttribute('data-fan'));
+          updateFanButtons(state.currentFan);
+        });
+      });
+
+      document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.currentMode = parseInt(btn.getAttribute('data-mode'));
+          updateModeButtons(state.currentMode);
+        });
+      });
+
+      // 4. 即時發射開關機
+      document.getElementById('btnSendAcOn').addEventListener('click', () => {
+        // 發射開機：AC_CMD:1,temp,mode,fan
+        const cmd = `AC_CMD:1,${state.currentTemp},${state.currentMode},${state.currentFan}`;
+        sendCommand(cmd);
+      });
+
+      document.getElementById('btnSendAcOff').addEventListener('click', () => {
+        sendCommand('AC_OFF');
+      });
+
+      // 5. 定時排程儲存寫入
+      document.getElementById('btnSaveSchedule').addEventListener('click', () => {
+        const enabled = document.getElementById('toggleSched').checked ? 1 : 0;
+        const onVal = document.getElementById('inputOnTime').value || '20:00';
+        const offVal = document.getElementById('inputOffTime').value || '08:00';
+
+        const [onH, onM] = onVal.split(':').map(Number);
+        const [offH, offM] = offVal.split(':').map(Number);
+
+        let smode = 0;
+        const radios = document.getElementsByName('schedMode');
+        for (const r of radios) {
+          if (r.checked) smode = parseInt(r.value);
+        }
+
+        // SET_SCHED:enable,onH,onM,offH,offM,schedMode,temp,acMode,acFan
+        const cmd = `SET_SCHED:${enabled},${onH},${onM},${offH},${offM},${smode},${state.currentTemp},${state.currentMode},${state.currentFan}`;
+        sendCommand(cmd);
+      });
+
+      // 6. 時鐘校正：快速填入手機現在時間
+      const fillCurrentDateTime = () => {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = (now.getMonth() + 1).toString().padStart(2, '0');
+        const d = now.getDate().toString().padStart(2, '0');
+        const hh = now.getHours().toString().padStart(2, '0');
+        const mm = now.getMinutes().toString().padStart(2, '0');
+        const ss = now.getSeconds().toString().padStart(2, '0');
+
+        document.getElementById('inputRtcDate').value = `${y}-${m}-${d}`;
+        document.getElementById('inputRtcTime').value = `${hh}:${mm}:${ss}`;
+      };
+
+      fillCurrentDateTime();
+      document.getElementById('btnSyncPhoneTime').addEventListener('click', () => {
+        fillCurrentDateTime();
+        showToast('已將手機目前時間填入輸入框', 'info');
+      });
+
+      document.getElementById('btnSendRtcCalibrate').addEventListener('click', () => {
+        const dateVal = document.getElementById('inputRtcDate').value;
+        const timeVal = document.getElementById('inputRtcTime').value;
+
+        if (!dateVal || !timeVal) {
+          showToast('請先輸入正確的日期與時間', 'warn');
+          return;
+        }
+
+        const [y, m, d] = dateVal.split('-').map(Number);
+        const timeParts = timeVal.split(':').map(Number);
+        const hh = timeParts[0] || 0;
+        const mm = timeParts[1] || 0;
+        const ss = timeParts[2] || 0;
+
+        // SET_TIME:y,m,d,hh,mm,ss
+        const cmd = `SET_TIME:${y},${m},${d},${hh},${mm},${ss}`;
+        sendCommand(cmd);
+      });
+
+      // 7. 學習槽錄製與測試發射按鈕
+      document.querySelectorAll('[data-record-slot]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const slot = btn.getAttribute('data-record-slot');
+          sendCommand(`RECORD:${slot}`);
+        });
+      });
+
+      document.getElementById('btnStopRecording').addEventListener('click', () => {
+        sendCommand('STOP_RECORD');
+      });
+
+      document.querySelectorAll('[data-play-slot]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const slot = btn.getAttribute('data-play-slot');
+          sendCommand(`PLAY:${slot}`);
+        });
+      });
+
+      document.querySelectorAll('[data-clear-slot]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const slot = btn.getAttribute('data-clear-slot');
+          showModal('確認清除', `確定要抹除學習槽 ${slot} 的波形資料嗎？`, true, () => {
+            sendCommand(`CLEAR_SLOT:${slot}`);
+          });
+        });
+      });
+
+      // 8. 診斷終端輔助按鈕
+      document.getElementById('btnPingStatus').addEventListener('click', () => {
+        sendCommand('PING');
+        setTimeout(() => sendCommand('STATUS'), 200);
+      });
+
+      document.getElementById('btnClearLog').addEventListener('click', () => {
+        document.getElementById('terminalLog').innerHTML = '<div class="text-slate-500">// 日誌已清空</div>';
+      });
+
+      document.getElementById('btnSendManualCmd').addEventListener('click', () => {
+        const input = document.getElementById('inputManualCmd');
+        if (input.value.trim()) {
+          sendCommand(input.value);
+          input.value = '';
+        }
+      });
+
+      document.getElementById('inputManualCmd').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          document.getElementById('btnSendManualCmd').click();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
