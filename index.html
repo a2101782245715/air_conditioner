@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Panasonic 冷氣智慧遙控控制台</title>
+  <title>Panasonic 冷氣智慧遙控控制台 (64-bit 實體波形版)</title>
   
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -50,14 +50,14 @@
   <!-- 全域 Toast 通知容器 -->
   <div id="toastContainer" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-3"></div>
 
-  <!-- 自訂彈窗模態框 -->
+  <!-- 自訂彈窗模態框 (絕不使用原生 alert/confirm) -->
   <div id="customModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm hidden p-4">
     <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
       <div class="flex items-center gap-3">
         <div id="modalIcon" class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xl">⚠️</div>
         <h3 id="modalTitle" class="text-base font-bold text-white">操作提示</h3>
       </div>
-      <p id="modalMsg" class="text-sm text-slate-300 leading-relaxed"></p>
+      <p id="modalMsg" class="text-sm text-slate-300 leading-relaxed whitespace-pre-line"></p>
       <div class="flex justify-end gap-3 pt-2">
         <button id="modalBtnCancel" class="hidden px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700 transition">取消</button>
         <button id="modalBtnConfirm" class="px-5 py-2 rounded-xl bg-sky-600 text-white text-xs font-semibold hover:bg-sky-500 transition">我知道了</button>
@@ -74,10 +74,10 @@
         </div>
         <div>
           <h1 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
-            Panasonic 冷氣智慧控制台
+            Panasonic 老舊冷氣智慧控制台
             <span id="connTag" class="text-[10px] px-2 py-0.5 rounded-full bg-rose-950 text-rose-300 border border-rose-800">尚未連線</span>
           </h1>
-          <p class="text-[11px] text-slate-400">Nano Lisa 2011 + DS3231 + VS1838B</p>
+          <p class="text-[11px] text-slate-400">專用 64-bit 實體波形固化版 (Slot 0 / Slot 1)</p>
         </div>
       </div>
 
@@ -102,13 +102,13 @@
 
   <main class="max-w-6xl mx-auto px-4 py-6 sm:px-6 space-y-6">
 
-    <!-- 未連線醒目提示條 (未連線時展示) -->
+    <!-- 未連線醒目提示條 -->
     <div id="unconnectedBanner" class="bg-amber-950/40 border border-amber-500/40 rounded-2xl p-4 flex items-start gap-3">
       <span class="text-xl">⚠️</span>
       <div class="text-xs text-amber-200 space-y-1">
-        <div class="font-bold text-amber-300 text-sm">操作前必看：為什麼點擊會沒反應？</div>
-        <div>1. 若使用 USB 連線，請先<strong>關閉 Arduino IDE 右上角的「序列埠監控視窗」</strong>，否則電腦會鎖死 COM 埠！</div>
-        <div>2. 請先點擊右上角藍色的<strong>【① 點此接 USB 序列埠】</strong>，選取板子的 COM Port 連線後，所有按鈕才能生效。</div>
+        <div class="font-bold text-amber-300 text-sm">連線操作指引：</div>
+        <div>1. 若剛才使用 Arduino IDE 上傳，請務必<strong>關閉 IDE 裡的「Serial Monitor (序列埠監控視窗)」</strong>，否則 Windows 會鎖死 COM 埠！</div>
+        <div>2. 點擊右上角藍色的<strong>【① 點此接 USB 序列埠】</strong>，選取您的 Arduino Nano 連線後，下方按鈕即可立即發射。</div>
       </div>
     </div>
 
@@ -131,36 +131,72 @@
       </div>
 
       <div class="bg-card border border-cardBorder rounded-xl p-3 flex items-center gap-3">
-        <div class="p-2 rounded-lg bg-amber-500/10 text-amber-400 text-lg">💾</div>
+        <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 text-lg">⚡</div>
         <div>
           <div class="text-[10px] text-slate-400 font-medium">開機學習槽 0</div>
-          <div id="statusSlot0" class="text-xs sm:text-sm font-bold text-slate-400">未知</div>
+          <div id="statusSlot0" class="text-xs sm:text-sm font-bold text-emerald-400">已預載出廠波形</div>
         </div>
       </div>
 
       <div class="bg-card border border-cardBorder rounded-xl p-3 flex items-center gap-3">
-        <div class="p-2 rounded-lg bg-purple-500/10 text-purple-400 text-lg">💾</div>
+        <div class="p-2 rounded-lg bg-purple-500/10 text-purple-400 text-lg">🔴</div>
         <div>
           <div class="text-[10px] text-slate-400 font-medium">關機學習槽 1</div>
-          <div id="statusSlot1" class="text-xs sm:text-sm font-bold text-slate-400">未知</div>
+          <div id="statusSlot1" class="text-xs sm:text-sm font-bold text-purple-400">已預載出廠波形</div>
         </div>
       </div>
     </div>
 
+    <!-- ★ 核心重點：原裝 64-bit 即時實體發射區 (優先主力) -->
+    <section class="bg-gradient-to-br from-slate-900 via-slate-800/90 to-slate-900 border-2 border-sky-500/40 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-700/80">
+        <div class="flex items-center gap-3">
+          <div class="p-2.5 rounded-2xl bg-sky-500/20 text-sky-400 text-xl font-bold">🎯</div>
+          <div>
+            <h2 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              原裝 64-bit 即時一鍵遙控
+              <span class="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">100% 真實波形</span>
+            </h2>
+            <p class="text-xs text-slate-300">直接調用剛剛側錄固化的 131 個脈衝，對準冷氣一鍵立即觸發</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+        <!-- 巨型開機按鈕 -->
+        <button id="btnHeroOn" class="btn-press py-5 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-base sm:text-lg shadow-xl shadow-emerald-900/40 border border-emerald-400/40 flex items-center justify-center gap-3 transition">
+          <span class="text-2xl">⚡</span>
+          <div class="text-left">
+            <div class="leading-none">發射冷氣開機 (ON)</div>
+            <div class="text-[11px] text-emerald-100 font-normal mt-1 opacity-90">發射 Slot 0 實體波形</div>
+          </div>
+        </button>
+
+        <!-- 巨型關機按鈕 -->
+        <button id="btnHeroOff" class="btn-press py-5 px-6 rounded-2xl bg-gradient-to-r from-rose-700 to-red-600 hover:from-rose-600 hover:to-red-500 text-white font-bold text-base sm:text-lg shadow-xl shadow-rose-950/40 border border-rose-400/40 flex items-center justify-center gap-3 transition">
+          <span class="text-2xl">🔴</span>
+          <div class="text-left">
+            <div class="leading-none">發射冷氣關機 (OFF)</div>
+            <div class="text-[11px] text-rose-100 font-normal mt-1 opacity-90">發射 Slot 1 實體波形</div>
+          </div>
+        </button>
+      </div>
+    </section>
+
     <!-- 主要雙欄排版 -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-      <!-- 左側：學習槽原樣錄製 (特別移至最上方讓操作最直覺) -->
+      <!-- 左側：學習槽管理與排程 -->
       <div class="lg:col-span-6 space-y-6">
 
-        <!-- 卡片：原裝遙控器波形學習 (使用者最核心痛點) -->
+        <!-- 卡片：原裝遙控器波形學習槽 (隨時可用原廠遙控器覆蓋/自訂) -->
         <section class="bg-card border border-cardBorder rounded-2xl p-5 shadow-lg space-y-4">
           <div class="flex items-center justify-between pb-3 border-b border-slate-700/60">
             <div class="flex items-center gap-2">
               <span class="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 text-sm font-bold">🎙️</span>
               <div>
-                <h2 class="text-sm sm:text-base font-bold text-white">原裝遙控器學習槽</h2>
-                <p class="text-[11px] text-slate-400">錄音時對準 VS1838B 按一下遙控器即可自動存檔</p>
+                <h2 class="text-sm sm:text-base font-bold text-white">波形學習槽 (隨時覆蓋/微調)</h2>
+                <p class="text-[11px] text-slate-400">若想換成 24°C 或其他風量，隨時拿原裝遙控器對準 D2 學習</p>
               </div>
             </div>
           </div>
@@ -170,16 +206,15 @@
             <div class="flex items-center justify-between">
               <div>
                 <span class="text-sm font-bold text-white">學習槽 0 (開機專用)</span>
-                <p class="text-[11px] text-slate-400">定時開機或即時開機時發射</p>
+                <p class="text-[11px] text-slate-400">已預載 64-bit 開機波形 (131 ticks)</p>
               </div>
-              <span id="badgeSlot0" class="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400">未偵測</span>
+              <span id="badgeSlot0" class="text-[10px] px-2 py-0.5 rounded-md bg-emerald-950 text-emerald-300 border border-emerald-800">已預載就緒</span>
             </div>
 
             <div class="grid grid-cols-3 gap-2">
-              <!-- 動態錄製/停止按鈕 -->
               <button id="btnRecSlot0" class="btn-press py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-amber-700/30">
                 <span id="iconRec0">🎙️</span>
-                <span id="textRec0">開始錄製</span>
+                <span id="textRec0">重新錄製</span>
               </button>
 
               <button id="btnPlaySlot0" class="btn-press py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold transition flex items-center justify-center gap-1">
@@ -187,13 +222,13 @@
               </button>
 
               <button id="btnClearSlot0" class="btn-press py-2.5 rounded-xl bg-slate-800 hover:bg-rose-950/50 hover:text-rose-300 border border-slate-700 text-slate-400 text-xs font-semibold transition">
-                🗑️ 清除
+                🗑️ 清空
               </button>
             </div>
 
             <!-- 即時操作引導 (錄音進行時出現) -->
             <div id="tipSlot0" class="hidden p-2.5 rounded-lg bg-amber-950/60 border border-amber-500/50 text-[11px] text-amber-200 animate-pulse">
-              🔴 <strong>正在待命中（板子 L 燈已亮）</strong>：請拿冷氣遙控器對準 VS1838B 接收頭按一下【開機】，錄完會自動停止！若想放棄請再按一次紅色按鈕。
+              🔴 <strong>正在待命中（板子 L 燈已亮）</strong>：請拿原廠冷氣遙控器對準 VS1838B 接收模組按一下，錄完會自動存入 EEPROM 並熄燈！若想放棄請再按一次此按鈕。
             </div>
           </div>
 
@@ -202,15 +237,15 @@
             <div class="flex items-center justify-between">
               <div>
                 <span class="text-sm font-bold text-white">學習槽 1 (關機專用)</span>
-                <p class="text-[11px] text-slate-400">定時關機或即時關機時發射</p>
+                <p class="text-[11px] text-slate-400">已預載 64-bit 關機波形 (131 ticks)</p>
               </div>
-              <span id="badgeSlot1" class="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400">未偵測</span>
+              <span id="badgeSlot1" class="text-[10px] px-2 py-0.5 rounded-md bg-emerald-950 text-emerald-300 border border-emerald-800">已預載就緒</span>
             </div>
 
             <div class="grid grid-cols-3 gap-2">
               <button id="btnRecSlot1" class="btn-press py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-amber-700/30">
                 <span id="iconRec1">🎙️</span>
-                <span id="textRec1">開始錄製</span>
+                <span id="textRec1">重新錄製</span>
               </button>
 
               <button id="btnPlaySlot1" class="btn-press py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold transition flex items-center justify-center gap-1">
@@ -218,12 +253,12 @@
               </button>
 
               <button id="btnClearSlot1" class="btn-press py-2.5 rounded-xl bg-slate-800 hover:bg-rose-950/50 hover:text-rose-300 border border-slate-700 text-slate-400 text-xs font-semibold transition">
-                🗑️ 清除
+                🗑️ 清空
               </button>
             </div>
 
             <div id="tipSlot1" class="hidden p-2.5 rounded-lg bg-amber-950/60 border border-amber-500/50 text-[11px] text-amber-200 animate-pulse">
-              🔴 <strong>正在待命中（板子 L 燈已亮）</strong>：請拿冷氣遙控器對準 VS1838B 接收頭按一下【關機】，錄完會自動停止！
+              🔴 <strong>正在待命中（板子 L 燈已亮）</strong>：請拿原廠冷氣遙控器對準 VS1838B 接收模組按一下，錄完會自動停止！
             </div>
           </div>
         </section>
@@ -234,13 +269,13 @@
             <div class="flex items-center gap-2">
               <span class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-sm font-bold">⏰</span>
               <div>
-                <h2 class="text-sm sm:text-base font-bold text-white">定時開關機排程</h2>
-                <p class="text-[11px] text-slate-400">寫入後 DS3231 脫機獨立計時觸發</p>
+                <h2 class="text-sm sm:text-base font-bold text-white">脫機定時開關機排程</h2>
+                <p class="text-[11px] text-slate-400">寫入後由 DS3231 脫機獨立精準定時觸發</p>
               </div>
             </div>
 
             <label class="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" id="toggleSched" class="sr-only peer">
+              <input type="checkbox" id="toggleSched" class="sr-only peer" checked>
               <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:width-5 after:transition-all peer-checked:bg-emerald-600"></div>
             </label>
           </div>
@@ -258,83 +293,28 @@
           </div>
 
           <div class="bg-slate-900/60 border border-slate-700/80 rounded-xl p-3 text-xs space-y-2">
-            <span class="font-semibold text-slate-300 block">排程觸發模式：</span>
-            <div class="grid grid-cols-2 gap-2">
-              <label class="flex items-center gap-2 bg-slate-800 p-2.5 rounded-lg cursor-pointer">
+            <span class="font-semibold text-slate-300 block">定時觸發模式：</span>
+            <div class="grid grid-cols-1 gap-2">
+              <label class="flex items-center gap-2 bg-slate-800 p-2.5 rounded-lg cursor-pointer border border-sky-500/40">
                 <input type="radio" name="schedMode" value="0" checked class="text-sky-500">
-                <span>優先重播錄製槽 (推薦老機)</span>
+                <span class="font-bold text-sky-200">模式 0：優先重播 64-bit 實體波形 (Slot 0開 / Slot 1關，老機唯一保證！)</span>
               </label>
-              <label class="flex items-center gap-2 bg-slate-800 p-2.5 rounded-lg cursor-pointer">
+              <label class="flex items-center gap-2 bg-slate-800 p-2.5 rounded-lg cursor-pointer text-slate-400">
                 <input type="radio" name="schedMode" value="1" class="text-sky-500">
-                <span>內建 Panasonic 協議</span>
+                <span>模式 1：現代 Panasonic 216-bit 協議 (老機不適用)</span>
               </label>
             </div>
           </div>
 
-          <button id="btnSaveSchedule" class="btn-press w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md transition">
+          <button id="btnSaveSchedule" class="btn-press w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md transition">
             💾 儲存並寫入定時排程 (SET_SCHED)
           </button>
         </section>
 
       </div>
 
-      <!-- 右側：即時操控 + RTC 校時 + 終端監控 (佔 6 欄) -->
+      <!-- 右側：時鐘校準 + 監視日誌 + 實驗協議備用 -->
       <div class="lg:col-span-6 space-y-6">
-
-        <!-- 卡片：即時冷氣控制 (手動遙控) -->
-        <section class="bg-card border border-cardBorder rounded-2xl p-5 shadow-lg space-y-4">
-          <div class="flex items-center justify-between pb-3 border-b border-slate-700/60">
-            <div class="flex items-center gap-2">
-              <span class="p-1.5 rounded-lg bg-sky-500/10 text-sky-400 text-sm font-bold">❄️</span>
-              <div>
-                <h2 class="text-sm sm:text-base font-bold text-white">冷氣手動遙控</h2>
-                <p class="text-[11px] text-slate-400">發射內建協議或指定溫度</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- 溫度控制區塊 -->
-          <div>
-            <div class="flex items-center justify-between mb-1.5">
-              <label class="text-xs font-semibold text-slate-300">設定溫度 (16°C ~ 30°C)</label>
-              <span id="tempValidationTip" class="text-[11px] text-sky-400 font-medium"></span>
-            </div>
-            <div class="flex items-center gap-3">
-              <button id="btnTempMinus" class="btn-press w-12 h-12 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-400 font-bold text-2xl border border-slate-700 flex items-center justify-center transition">
-                −
-              </button>
-              <div class="flex-1 flex items-center justify-center bg-slate-900 border border-slate-700 rounded-xl px-4 py-1.5">
-                <input id="inputTemp" type="number" min="16" max="30" value="26" step="1"
-                  class="w-20 text-center font-bold text-3xl sm:text-4xl bg-transparent text-white font-mono focus:outline-none focus:text-sky-400" />
-                <span class="text-base font-bold text-slate-400 ml-1">°C</span>
-              </div>
-              <button id="btnTempPlus" class="btn-press w-12 h-12 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-400 font-bold text-2xl border border-slate-700 flex items-center justify-center transition">
-                +
-              </button>
-            </div>
-          </div>
-
-          <!-- 風量選擇 -->
-          <div>
-            <label class="text-xs font-semibold text-slate-300 block mb-2">風量</label>
-            <div class="grid grid-cols-4 gap-2">
-              <button data-fan="0" class="fan-btn btn-press py-2 rounded-xl text-xs font-semibold bg-sky-600 text-white border border-sky-400">💨 自動</button>
-              <button data-fan="1" class="fan-btn btn-press py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700">🍃 弱</button>
-              <button data-fan="3" class="fan-btn btn-press py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700">🌪️ 中</button>
-              <button data-fan="5" class="fan-btn btn-press py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700">⚡ 強</button>
-            </div>
-          </div>
-
-          <!-- 即時發射開關按鈕 -->
-          <div class="pt-2 border-t border-slate-700/60 grid grid-cols-2 gap-3">
-            <button id="btnSendAcOn" class="btn-press py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/30 transition">
-              ⚡ 發射開機
-            </button>
-            <button id="btnSendAcOff" class="btn-press py-3 rounded-xl bg-slate-800 hover:bg-rose-900 text-slate-200 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 border border-slate-700 transition">
-              🔴 發射關機
-            </button>
-          </div>
-        </section>
 
         <!-- 卡片：DS3231 時間校正 -->
         <section class="bg-card border border-cardBorder rounded-2xl p-5 shadow-lg space-y-4">
@@ -343,7 +323,7 @@
               <span class="p-1.5 rounded-lg bg-purple-500/10 text-purple-400 text-sm font-bold">📅</span>
               <div>
                 <h2 class="text-sm sm:text-base font-bold text-white">DS3231 時鐘校正</h2>
-                <p class="text-[11px] text-slate-400">一鍵同步手機時間至時鐘晶片</p>
+                <p class="text-[11px] text-slate-400">一鍵同步手機/電腦時間至硬體時鐘</p>
               </div>
             </div>
             <button id="btnSyncPhoneTime" class="btn-press px-2.5 py-1 rounded-lg bg-purple-950/60 hover:bg-purple-900 border border-purple-700 text-[11px] font-semibold text-purple-300 transition">
@@ -361,18 +341,18 @@
           </button>
         </section>
 
-        <!-- 卡片：通訊成果監視面板 (除錯核心) -->
+        <!-- 卡片：通訊成果監視面板 -->
         <section class="bg-card border border-cardBorder rounded-2xl p-5 shadow-lg space-y-3">
           <div class="flex items-center justify-between pb-2 border-b border-slate-700/60">
             <div class="flex items-center gap-2">
               <span class="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 text-sm font-bold">📡</span>
               <div>
-                <h2 class="text-sm font-bold text-white">通訊監視日誌</h2>
-                <p class="text-[11px] text-slate-400">實時監控板子收發情況</p>
+                <h2 class="text-sm font-bold text-white">序列埠通訊日誌</h2>
+                <p class="text-[11px] text-slate-400">雙向命令即時追蹤</p>
               </div>
             </div>
             <div class="flex items-center gap-2">
-              <button id="btnPingStatus" class="btn-press px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-semibold text-sky-400">
+              <button id="btnPingStatus" class="btn-press px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-semibold text-sky-400">
                 測試連線 (PING)
               </button>
               <button id="btnClearLog" class="text-slate-400 hover:text-slate-200 text-xs p-1">
@@ -381,8 +361,8 @@
             </div>
           </div>
 
-          <div id="terminalLog" class="w-full h-44 bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-[11px] overflow-y-auto space-y-1 select-text">
-            <div class="text-slate-500">// 提示：請先確認 Arduino IDE 序列埠監控已關閉，然後點擊上方【① 點此接 USB 序列埠】...</div>
+          <div id="terminalLog" class="w-full h-48 bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-[11px] overflow-y-auto space-y-1 select-text">
+            <div class="text-slate-500">// 提示：關閉 Arduino IDE 監控視窗後，點擊右上角【① 點此接 USB 序列埠】即可連線...</div>
           </div>
         </section>
 
@@ -391,9 +371,6 @@
   </main>
 
   <script>
-    // ==========================================
-    // 狀態管理
-    // ==========================================
     const state = {
       connType: null, // 'serial' | 'ble' | null
       serialPort: null,
@@ -401,17 +378,12 @@
       serialWriter: null,
       bleDevice: null,
       bleChar: null,
-      currentTemp: 26,
-      currentFan: 0,
-      currentMode: 1,
-      recordingSlot: -1, // -1 代表沒有在錄音
+      recordingSlot: -1,
       recTimer: null,
       recSecondsLeft: 15
     };
 
-    // ==========================================
     // UI 提示與彈窗
-    // ==========================================
     function showToast(message, type = 'info') {
       const container = document.getElementById('toastContainer');
       const toast = document.createElement('div');
@@ -479,16 +451,12 @@
       return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
-    // ==========================================
-    // 通訊核心發送
-    // ==========================================
     async function sendCommand(cmdStr) {
       cmdStr = cmdStr.trim();
       if (!cmdStr) return;
 
       if (!state.connType) {
-        showModal('尚未連接板子！', '請先點擊右上角藍色的【① 點此接 USB 序列埠】選取板子，連線成功後才能執行任何操作！\n\n（若剛才用 Arduino IDE 燒錄，請務必先關閉 IDE 的序列埠監控視窗）');
-        // 抖動提醒
+        showModal('尚未連接板子！', '請先點擊右上角藍色的【① 點此接 USB 序列埠】選取板子，連線成功後才能發射！\n\n（若剛才在 Arduino IDE 燒錄，請務必先關閉 IDE 裡的序列埠監控視窗）');
         const btn = document.getElementById('btnConnectSerial');
         btn.classList.add('animate-bounce');
         setTimeout(() => btn.classList.remove('animate-bounce'), 2000);
@@ -513,12 +481,9 @@
       }
     }
 
-    // ==========================================
-    // USB 序列埠連線
-    // ==========================================
     async function connectSerial() {
       if (!navigator.serial) {
-        showModal('瀏覽器不支援', '請使用 Google Chrome 或 Edge 瀏覽器（Android 手機可使用 Chrome + USB OTG 轉接線）。');
+        showModal('瀏覽器不支援', '請使用 Google Chrome 或 Microsoft Edge 瀏覽器（Android 手機可使用 Chrome + USB OTG 轉接線）。');
         return;
       }
 
@@ -536,11 +501,11 @@
         showToast('板子已成功連線！', 'success');
 
         readSerialLoop();
-        setTimeout(() => sendCommand('STATUS'), 600);
+        setTimeout(() => sendCommand('STATUS'), 500);
       } catch (err) {
         if (err.name !== 'NotFoundError') {
           console.error(err);
-          showModal('連線失敗！', `無法開啟序列埠：${err.message}\n\n【排查重點】：\n1. 您是否還開著 Arduino IDE 的「序列埠監控視窗」？請先將它關閉！\n2. 請重新插拔一次 USB 線後再試。`);
+          showModal('連線失敗！', `無法開啟序列埠：${err.message}\n\n【排查重點】：\n1. Arduino IDE 的「序列埠監控視窗」是否還開著？請先將它關閉！\n2. 請重新插拔一次 USB 線後再試。`);
         }
       }
     }
@@ -611,9 +576,6 @@
       }
     }
 
-    // ==========================================
-    // 下位機指令解析引擎
-    // ==========================================
     function handleIncomingLine(line) {
       appendLog('RX', line);
 
@@ -645,15 +607,15 @@
       }
       else if (line.startsWith('EVENT:REC_SUCCESS:')) {
         resetRecordingUI();
-        showToast('🎉 紅外線訊號成功錄入 EEPROM！', 'success');
+        showToast('🎉 原裝遙控器波形成功學習並存入 EEPROM！', 'success');
         sendCommand('STATUS');
       }
       else if (line.startsWith('EVENT:REC_TIMEOUT:') || line.startsWith('EVENT:REC_STOPPED:')) {
         resetRecordingUI();
-        showToast('錄音已停止', 'info');
+        showToast('錄音已結束', 'info');
       }
       else if (line.startsWith('ACK:PLAYED_SLOT:')) {
-        showToast(`學習槽 ${line.split(':')[2]} 原裝波形已發射！`, 'success');
+        showToast(`學習槽 ${line.split(':')[2]} 原裝實體波形已成功發射！`, 'success');
       }
       else if (line.startsWith('ERR:SLOT_EMPTY:')) {
         showToast('該槽位尚未錄入任何訊號！', 'warn');
@@ -664,9 +626,9 @@
       const badge = document.getElementById(`badgeSlot${slot}`);
       const status = document.getElementById(`statusSlot${slot}`);
       if (isValid) {
-        badge.innerText = '已儲存波形';
+        badge.innerText = '已就緒 (64-bit)';
         badge.className = 'text-[10px] px-2 py-0.5 rounded-md bg-emerald-950 text-emerald-300 border border-emerald-800';
-        status.innerText = '已就緒';
+        status.innerText = '已預載出廠波形';
         status.className = 'text-xs sm:text-sm font-bold text-emerald-400';
       } else {
         badge.innerText = '空白未錄製';
@@ -676,9 +638,7 @@
       }
     }
 
-    // ==========================================
-    // 一鍵式切換錄製/停止 UI 管理
-    // ==========================================
+    // 錄製狀態管理
     function setRecordingState(slot, isRec) {
       state.recordingSlot = isRec ? slot : -1;
       const btn = document.getElementById(`btnRecSlot${slot}`);
@@ -705,7 +665,7 @@
       } else {
         btn.className = 'btn-press py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-amber-700/30';
         icon.innerText = '🎙️';
-        text.innerText = '開始錄製';
+        text.innerText = '重新錄製';
         tip.classList.add('hidden');
       }
     }
@@ -719,28 +679,34 @@
 
     function handleRecordToggle(slot) {
       if (!state.connType) {
-        sendCommand('STATUS'); // 會觸發未連線提示彈窗
+        sendCommand('STATUS');
         return;
       }
 
-      // 如果當前正在錄這個槽位 -> 點擊則是手動停止
       if (state.recordingSlot === slot) {
         sendCommand('STOP_RECORD');
         resetRecordingUI();
       } else {
-        // 開始錄製這個槽位
         resetRecordingUI();
         setRecordingState(slot, true);
         sendCommand(`RECORD:${slot}`);
       }
     }
 
-    // ==========================================
-    // 事件綁定
-    // ==========================================
     window.addEventListener('DOMContentLoaded', () => {
       document.getElementById('btnConnectSerial').addEventListener('click', connectSerial);
       document.getElementById('btnDisconnect').addEventListener('click', disconnect);
+
+      // ★ 巨型一鍵開關機發射按鈕 (直接發送 ON 與 OFF)
+      document.getElementById('btnHeroOn').addEventListener('click', () => {
+        sendCommand('ON');
+        showToast('正在發射原裝 64-bit 開機訊號...', 'info');
+      });
+
+      document.getElementById('btnHeroOff').addEventListener('click', () => {
+        sendCommand('OFF');
+        showToast('正在發射原裝 64-bit 關機訊號...', 'info');
+      });
 
       // 槽位 0 與 槽位 1 的切換式錄音按鈕
       document.getElementById('btnRecSlot0').addEventListener('click', () => handleRecordToggle(0));
@@ -767,41 +733,13 @@
         document.getElementById('terminalLog').innerHTML = '<div class="text-slate-500">// 日誌已清空</div>';
       });
 
-      // 溫度與風量控制
-      const tempInput = document.getElementById('inputTemp');
-      document.getElementById('btnTempMinus').addEventListener('click', () => {
-        let v = parseInt(tempInput.value) - 1;
-        if (v < 16) v = 16;
-        tempInput.value = v;
-      });
-      document.getElementById('btnTempPlus').addEventListener('click', () => {
-        let v = parseInt(tempInput.value) + 1;
-        if (v > 30) v = 30;
-        tempInput.value = v;
-      });
-
-      document.querySelectorAll('.fan-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          document.querySelectorAll('.fan-btn').forEach(b => b.className = 'fan-btn btn-press py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700');
-          btn.className = 'fan-btn btn-press py-2 rounded-xl text-xs font-semibold bg-sky-600 text-white border border-sky-400';
-          state.currentFan = parseInt(btn.getAttribute('data-fan'));
-        });
-      });
-
-      document.getElementById('btnSendAcOn').addEventListener('click', () => {
-        sendCommand(`AC_CMD:1,${tempInput.value},${state.currentMode},${state.currentFan}`);
-      });
-      document.getElementById('btnSendAcOff').addEventListener('click', () => {
-        sendCommand('AC_OFF');
-      });
-
       // 排程儲存
       document.getElementById('btnSaveSchedule').addEventListener('click', () => {
         const en = document.getElementById('toggleSched').checked ? 1 : 0;
         const [onH, onM] = document.getElementById('inputOnTime').value.split(':').map(Number);
         const [offH, offM] = document.getElementById('inputOffTime').value.split(':').map(Number);
         const smode = document.querySelector('input[name="schedMode"]:checked').value;
-        sendCommand(`SET_SCHED:${en},${onH},${onM},${offH},${offM},${smode},${tempInput.value},1,0`);
+        sendCommand(`SET_SCHED:${en},${onH},${onM},${offH},${offM},${smode},26,1,0`);
       });
 
       // 時間校正
@@ -809,7 +747,7 @@
         const now = new Date();
         document.getElementById('inputRtcDate').value = `${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')}`;
         document.getElementById('inputRtcTime').value = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
-        showToast('已填入手機時間', 'info');
+        showToast('已填入本機時間', 'info');
       });
 
       document.getElementById('btnSendRtcCalibrate').addEventListener('click', () => {
