@@ -181,7 +181,7 @@
 <body>
 <div class="wrap">
 
-  <span class="ver">v1.0</span>
+  <span class="ver">v1.1</span>
 
   <div class="clock" id="clock">
     <time id="tClock">--:--<span class="sec"></span></time>
@@ -237,7 +237,7 @@
       </div>
       <div class="row">
         <label for="hbEn">每秒回報時間
-          <span class="hint">關閉可省藍牙流量</span>
+          <span class="hint">中斷連線後控制器會自動停止</span>
         </label>
         <span class="switch"><input type="checkbox" id="hbEn" checked><span></span></span>
       </div>
@@ -258,7 +258,7 @@ const ACK_TIMEOUT = 1000, MAX_TRIES = 3;
 let device = null, chrRW = null, rxBuf = '';
 let queue = [], pending = null, sending = false;
 let baseTime = null, baseAt = 0, lastRx = 0, hbOn = true;
-let temp = 27, power = false, resyncAt = 0;
+let temp = 27, power = false, resyncAt = 0, keepAlive = null;
 
 // 收到控制器回報的時間，重設推算基準
 function markTime(h, m, s){
@@ -316,6 +316,8 @@ async function connect(anyDevice){
     log('已連線 ' + (device.name || '裝置'), 'rx');
 
     send('6');                       // 取得目前狀態
+    send('9,1', ok => { if(ok){ hbOn = true; $('hbEn').checked = true; } });
+    keepAlive = setInterval(() => { if(chrRW) send('0'); }, 30000);
   }catch(e){
     btn.classList.remove('busy');
     btn.textContent = '連線冷氣控制器';
@@ -326,6 +328,7 @@ async function connect(anyDevice){
 }
 
 function onDisconnect(){
+  clearInterval(keepAlive); keepAlive = null;
   chrRW = null; queue = []; pending = null; sending = false;
   $('ui').disabled = true;
   $('clock').classList.remove('live');
@@ -371,6 +374,7 @@ function handleLine(line){
       if(p[1]==='1'){ power = true;  paintPower(); }
       if(p[1]==='0'){ power = false; paintPower(); }
       if(p[1]==='90') banner('控制器曾經斷電，時間可能不正確。請按「校時」。');
+      if(p[1]==='91'){ hbOn = false; $('hbEn').checked = false; paintClock(); }
       if(p[1]==='99') banner('控制器找不到時鐘模組，排程無法運作。');
       log('← ' + line, 'rx');
       break;
@@ -471,10 +475,19 @@ function paintPower(){
 }
 
 /* ---------- 操作 ---------- */
-$('btnConnect').onclick = () => {
-  if(chrRW && device && device.gatt.connected) device.gatt.disconnect();
-  else connect(false);
+$('btnConnect').onclick = async () => {
+  if(chrRW && device && device.gatt.connected){
+    try{ await write('9,0\n'); }catch(e){}   // 請控制器立刻停止報時
+    device.gatt.disconnect();
+  }else{
+    connect(false);
+  }
 };
+
+// 離開頁面也盡量通知一聲
+window.addEventListener('pagehide', () => {
+  if(chrRW){ try{ write('9,0\n'); }catch(e){} }
+});
 $('btnAny').onclick = () => connect(true);
 
 $('btnOn').onclick  = () => send('4', ok => { if(ok){ power = true;  paintPower(); } });
