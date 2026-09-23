@@ -1,905 +1,495 @@
 <!DOCTYPE html>
-<html lang="zh-TW" class="dark">
+<html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Panasonic 冷氣智慧遙控控制台 (64-bit 實體波形版)</title>
-  
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            card: '#1e293b',
-            cardBorder: '#334155'
-          }
-        }
-      }
-    }
-  </script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>冷氣排程</title>
+<style>
+  :root{
+    --ink:#0D1B24;
+    --panel:#14252F;
+    --line:#223C49;
+    --text:#E4EEF2;
+    --muted:#7D99A6;
+    --cool:#6FD3E8;
+    --standby:#D9963F;
+    --bad:#DC6A5B;
+    --r:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--ink);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif;
+    font-size:16px;
+    line-height:1.5;
+    padding-top:env(safe-area-inset-top,0);
+    padding-bottom:env(safe-area-inset-bottom,0);
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:420px;margin:0 auto;padding:20px 18px 40px}
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  /* ---- 時鐘 ---- */
+  .clock{
+    text-align:center;
+    padding:26px 0 20px;
+  }
+  .clock time{
+    display:block;
+    font-size:64px;
+    font-weight:250;
+    letter-spacing:-.02em;
+    font-variant-numeric:tabular-nums;
+    color:var(--muted);
+    transition:color .4s;
+  }
+  .clock.live time{color:var(--text)}
+  .clock .sec{font-size:26px;font-weight:300;opacity:.55;margin-left:2px}
+  .clock .src{
+    font-size:13px;color:var(--muted);
+    display:inline-flex;align-items:center;gap:7px;
+  }
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--bad);flex:none}
+  .clock.live .dot{background:var(--cool)}
 
-  <style>
-    body {
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
-      -webkit-tap-highlight-color: transparent;
-      touch-action: manipulation;
-    }
-    .font-mono { font-family: 'JetBrains Mono', monospace; }
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #090d16; }
-    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
-    .btn-press:active { transform: scale(0.96); }
-    @keyframes pulse-red {
-      0%, 100% { background-color: #dc2626; }
-      50% { background-color: #991b1b; }
-    }
-    .recording-active {
-      animation: pulse-red 1s infinite;
-    }
-  </style>
+  /* ---- 電源 ---- */
+  .power{
+    display:grid;grid-template-columns:1fr 1fr;gap:10px;
+    margin:8px 0 26px;
+  }
+  .power button{
+    font:inherit;font-size:17px;font-weight:500;
+    padding:20px 0;border-radius:var(--r);
+    border:1px solid var(--line);
+    background:var(--panel);color:var(--text);
+    cursor:pointer;
+    transition:background .15s,border-color .15s,color .15s;
+  }
+  .power button:active{transform:translateY(1px)}
+  .power button.on[aria-pressed=true]{
+    background:var(--cool);border-color:var(--cool);color:#06222B;
+  }
+  .power button.off[aria-pressed=true]{
+    background:var(--standby);border-color:var(--standby);color:#251503;
+  }
+
+  /* ---- 設定列 ---- */
+  .panel{
+    background:var(--panel);
+    border-radius:var(--r);
+    overflow:hidden;
+    margin-bottom:22px;
+  }
+  .row{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:14px;padding:15px 16px;
+    border-bottom:1px solid var(--line);
+  }
+  .row:last-child{border-bottom:none}
+  .row label,.row .k{font-size:15px}
+  .row .hint{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+
+  input[type=time]{
+    font:inherit;font-size:17px;font-variant-numeric:tabular-nums;
+    background:transparent;color:var(--text);
+    border:1px solid var(--line);border-radius:9px;
+    padding:7px 9px;
+  }
+  .stepper{display:flex;align-items:center;gap:4px}
+  .stepper button{
+    width:38px;height:38px;font:inherit;font-size:20px;
+    border:1px solid var(--line);border-radius:9px;
+    background:transparent;color:var(--text);cursor:pointer;
+  }
+  .stepper .val{
+    min-width:62px;text-align:center;
+    font-size:19px;font-variant-numeric:tabular-nums;
+  }
+
+  .switch{position:relative;width:48px;height:28px;flex:none}
+  .switch input{opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+  .switch span{
+    position:absolute;inset:0;border-radius:999px;
+    background:var(--line);pointer-events:none;transition:background .2s;
+  }
+  .switch span::after{
+    content:"";position:absolute;top:3px;left:3px;
+    width:22px;height:22px;border-radius:50%;background:var(--text);
+    transition:transform .2s;
+  }
+  .switch input:checked + span{background:var(--cool)}
+  .switch input:checked + span::after{transform:translateX(20px)}
+
+  .ghost{
+    font:inherit;font-size:14.5px;
+    background:transparent;color:var(--cool);
+    border:1px solid var(--line);border-radius:9px;
+    padding:8px 13px;cursor:pointer;
+  }
+
+  .connect{
+    width:100%;font:inherit;font-size:16px;font-weight:500;
+    padding:15px;border-radius:var(--r);
+    border:1px solid var(--cool);background:transparent;color:var(--cool);
+    cursor:pointer;margin-bottom:22px;
+  }
+  .connect.busy{opacity:.5}
+  .alt{
+    display:block;width:100%;text-align:center;
+    background:none;border:none;font:inherit;font-size:13px;
+    color:var(--muted);text-decoration:underline;cursor:pointer;
+    margin:-12px 0 22px;padding:4px;
+  }
+
+  details summary{
+    font-size:14px;color:var(--muted);cursor:pointer;padding:6px 0;
+  }
+  #log{
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:12px;line-height:1.6;
+    background:#0A151C;border-radius:10px;
+    padding:11px;margin-top:8px;
+    height:190px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;
+  }
+  #log .tx{color:var(--cool)}
+  #log .rx{color:var(--muted)}
+  #log .er{color:var(--bad)}
+
+  .banner{
+    border-radius:10px;padding:12px 14px;margin-bottom:18px;
+    font-size:14px;background:#3A2410;color:#F0C489;
+    border:1px solid #6B4318;
+  }
+  [hidden]{display:none !important}
+  button:focus-visible,input:focus-visible,summary:focus-visible{
+    outline:2px solid var(--cool);outline-offset:2px;
+  }
+  fieldset{border:none;margin:0;padding:0}
+  fieldset:disabled{opacity:.45}
+  @media (prefers-reduced-motion:reduce){*{transition:none !important}}
+</style>
 </head>
+<body>
+<div class="wrap">
 
-<body class="bg-slate-950 text-slate-100 min-h-screen pb-16 antialiased">
-
-  <!-- 全域 Toast 通知容器 -->
-  <div id="toastContainer" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-3"></div>
-
-  <!-- 自訂彈窗模態框 (絕不使用原生 alert/confirm) -->
-  <div id="customModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm hidden p-4">
-    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-      <div class="flex items-center gap-3">
-        <div id="modalIcon" class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xl">⚠️</div>
-        <h3 id="modalTitle" class="text-base font-bold text-white">操作提示</h3>
-      </div>
-      <p id="modalMsg" class="text-sm text-slate-300 leading-relaxed whitespace-pre-line"></p>
-      <div class="flex justify-end gap-3 pt-2">
-        <button id="modalBtnCancel" class="hidden px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700 transition">取消</button>
-        <button id="modalBtnConfirm" class="px-5 py-2 rounded-xl bg-sky-600 text-white text-xs font-semibold hover:bg-sky-500 transition">我知道了</button>
-      </div>
-    </div>
+  <div class="clock" id="clock">
+    <time id="tClock">--:--<span class="sec"></span></time>
+    <span class="src"><span class="dot"></span><span id="tState">尚未連線</span></span>
   </div>
 
-  <!-- 頂部標題與連線狀態工具列 -->
-  <header class="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3 sm:px-6">
-    <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20 text-white font-bold text-xl">
-          ❄️
-        </div>
-        <div>
-          <h1 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
-            Panasonic 老舊冷氣智慧控制台
-            <span id="connTag" class="text-[10px] px-2 py-0.5 rounded-full bg-rose-950 text-rose-300 border border-rose-800">尚未連線</span>
-          </h1>
-          <p class="text-[11px] text-slate-400">專用 64-bit 實體波形固化版 (Slot 0 / Slot 1)</p>
-        </div>
-      </div>
+  <button class="connect" id="btnConnect">連線冷氣控制器</button>
+  <button class="alt" id="btnAny" hidden>找不到？改用完整裝置清單</button>
 
-      <!-- 連線操作按鈕群 -->
-      <div class="flex items-center gap-2 flex-wrap">
-        <button id="btnConnectSerial" class="btn-press px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-xs font-bold text-white flex items-center gap-1.5 shadow-md shadow-sky-600/30 transition">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-          ① 點此接 USB 序列埠
-        </button>
+  <div class="banner" id="banner" hidden></div>
 
-        <button id="btnConnectBle" class="btn-press px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-300 flex items-center gap-1.5 transition">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-          藍牙 HM-10
-        </button>
+  <fieldset id="ui" disabled>
 
-        <button id="btnDisconnect" class="btn-press hidden px-3 py-2 rounded-xl bg-rose-950/80 hover:bg-rose-900 border border-rose-800 text-xs font-semibold text-rose-300 transition">
-          中斷連線
-        </button>
-      </div>
-    </div>
-  </header>
-
-  <main class="max-w-6xl mx-auto px-4 py-6 sm:px-6 space-y-6">
-
-    <!-- 未連線醒目提示條 -->
-    <div id="unconnectedBanner" class="bg-amber-950/40 border border-amber-500/40 rounded-2xl p-4 flex items-start gap-3">
-      <span class="text-xl">⚠️</span>
-      <div class="text-xs text-amber-200 space-y-1">
-        <div class="font-bold text-amber-300 text-sm">連線操作指引：</div>
-        <div>1. 若剛才使用 Arduino IDE 上傳，請務必<strong>關閉 IDE 裡的「Serial Monitor (序列埠監控視窗)」</strong>，否則 Windows 會鎖死 COM 埠！</div>
-        <div>2. 點擊右上角藍色的<strong>【① 點此接 USB 序列埠】</strong>，選取您的 Arduino Nano 連線後，下方按鈕即可立即發射。</div>
-      </div>
+    <div class="power">
+      <button class="on"  id="btnOn"  aria-pressed="false">開冷氣</button>
+      <button class="off" id="btnOff" aria-pressed="false">關冷氣</button>
     </div>
 
-    <!-- 頂部即時硬體狀態列 -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      <div class="bg-card border border-cardBorder rounded-xl p-3 flex items-center gap-3">
-        <div class="p-2 rounded-lg bg-sky-500/10 text-sky-400 text-lg">🕒</div>
-        <div>
-          <div class="text-[10px] text-slate-400 font-medium">板載 RTC 時間</div>
-          <div id="statusRtcTime" class="text-xs sm:text-sm font-bold text-white font-mono">未連線</div>
-        </div>
-      </div>
-
-      <div class="bg-card border border-cardBorder rounded-xl p-3 flex items-center gap-3">
-        <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 text-lg">⏰</div>
-        <div>
-          <div class="text-[10px] text-slate-400 font-medium">定時排程</div>
-          <div id="statusSchedMode" class="text-xs sm:text-sm font-bold text-slate-400">未連線</div>
-        </div>
-      </div>
-
-      <div class="bg-card border border-cardBorder rounded-xl p-3 flex items-center gap-3">
-        <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 text-lg">⚡</div>
-        <div>
-          <div class="text-[10px] text-slate-400 font-medium">開機學習槽 0</div>
-          <div id="statusSlot0" class="text-xs sm:text-sm font-bold text-emerald-400">已預載出廠波形</div>
-        </div>
-      </div>
-
-      <div class="bg-card border border-cardBorder rounded-xl p-3 flex items-center gap-3">
-        <div class="p-2 rounded-lg bg-purple-500/10 text-purple-400 text-lg">🔴</div>
-        <div>
-          <div class="text-[10px] text-slate-400 font-medium">關機學習槽 1</div>
-          <div id="statusSlot1" class="text-xs sm:text-sm font-bold text-purple-400">已預載出廠波形</div>
+    <div class="panel">
+      <div class="row">
+        <div><span class="k">設定溫度</span></div>
+        <div class="stepper">
+          <button id="tDown" aria-label="降低溫度">−</button>
+          <span class="val" id="tempVal">--°</span>
+          <button id="tUp" aria-label="提高溫度">+</button>
         </div>
       </div>
     </div>
 
-    <!-- ★ 核心重點：原裝 64-bit 即時實體發射區 (優先主力) -->
-    <section class="bg-gradient-to-br from-slate-900 via-slate-800/90 to-slate-900 border-2 border-sky-500/40 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4">
-      <div class="flex items-center justify-between pb-3 border-b border-slate-700/80">
-        <div class="flex items-center gap-3">
-          <div class="p-2.5 rounded-2xl bg-sky-500/20 text-sky-400 text-xl font-bold">🎯</div>
-          <div>
-            <h2 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-              原裝 64-bit 即時一鍵遙控
-              <span class="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">100% 真實波形</span>
-            </h2>
-            <p class="text-xs text-slate-300">直接調用剛剛側錄固化的 131 個脈衝，對準冷氣一鍵立即觸發</p>
-          </div>
-        </div>
+    <div class="panel">
+      <div class="row">
+        <label for="onTime">每天開機</label>
+        <input type="time" id="onTime" value="22:00">
       </div>
-
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-        <!-- 巨型開機按鈕 -->
-        <button id="btnHeroOn" class="btn-press py-5 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-base sm:text-lg shadow-xl shadow-emerald-900/40 border border-emerald-400/40 flex items-center justify-center gap-3 transition">
-          <span class="text-2xl">⚡</span>
-          <div class="text-left">
-            <div class="leading-none">發射冷氣開機 (ON)</div>
-            <div class="text-[11px] text-emerald-100 font-normal mt-1 opacity-90">發射 Slot 0 實體波形</div>
-          </div>
-        </button>
-
-        <!-- 巨型關機按鈕 -->
-        <button id="btnHeroOff" class="btn-press py-5 px-6 rounded-2xl bg-gradient-to-r from-rose-700 to-red-600 hover:from-rose-600 hover:to-red-500 text-white font-bold text-base sm:text-lg shadow-xl shadow-rose-950/40 border border-rose-400/40 flex items-center justify-center gap-3 transition">
-          <span class="text-2xl">🔴</span>
-          <div class="text-left">
-            <div class="leading-none">發射冷氣關機 (OFF)</div>
-            <div class="text-[11px] text-rose-100 font-normal mt-1 opacity-90">發射 Slot 1 實體波形</div>
-          </div>
-        </button>
+      <div class="row">
+        <label for="offTime">每天關機</label>
+        <input type="time" id="offTime" value="06:00">
       </div>
-    </section>
-
-    <!-- 主要雙欄排版 -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-      <!-- 左側：學習槽管理與排程 -->
-      <div class="lg:col-span-6 space-y-6">
-
-        <!-- 卡片：原裝遙控器波形學習槽 (隨時可用原廠遙控器覆蓋/自訂) -->
-        <section class="bg-card border border-cardBorder rounded-2xl p-5 shadow-lg space-y-4">
-          <div class="flex items-center justify-between pb-3 border-b border-slate-700/60">
-            <div class="flex items-center gap-2">
-              <span class="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 text-sm font-bold">🎙️</span>
-              <div>
-                <h2 class="text-sm sm:text-base font-bold text-white">波形學習槽 (隨時覆蓋/微調)</h2>
-                <p class="text-[11px] text-slate-400">若想換成 24°C 或其他風量，隨時拿原裝遙控器對準 D2 學習</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- 槽位 0：開機波形 -->
-          <div class="bg-slate-900/90 border border-slate-700 rounded-xl p-4 space-y-3">
-            <div class="flex items-center justify-between">
-              <div>
-                <span class="text-sm font-bold text-white">學習槽 0 (開機專用)</span>
-                <p class="text-[11px] text-slate-400">已預載 64-bit 開機波形 (131 ticks)</p>
-              </div>
-              <span id="badgeSlot0" class="text-[10px] px-2 py-0.5 rounded-md bg-emerald-950 text-emerald-300 border border-emerald-800">已預載就緒</span>
-            </div>
-
-            <div class="grid grid-cols-3 gap-2">
-              <button id="btnRecSlot0" class="btn-press py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-amber-700/30">
-                <span id="iconRec0">🎙️</span>
-                <span id="textRec0">重新錄製</span>
-              </button>
-
-              <button id="btnPlaySlot0" class="btn-press py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold transition flex items-center justify-center gap-1">
-                ▶️ 測試發射
-              </button>
-
-              <button id="btnClearSlot0" class="btn-press py-2.5 rounded-xl bg-slate-800 hover:bg-rose-950/50 hover:text-rose-300 border border-slate-700 text-slate-400 text-xs font-semibold transition">
-                🗑️ 清空
-              </button>
-            </div>
-
-            <!-- 即時操作引導 (錄音進行時出現) -->
-            <div id="tipSlot0" class="hidden p-2.5 rounded-lg bg-amber-950/60 border border-amber-500/50 text-[11px] text-amber-200 animate-pulse">
-              🔴 <strong>正在待命中（板子 L 燈已亮）</strong>：請拿原廠冷氣遙控器對準 VS1838B 接收模組按一下，錄完會自動存入 EEPROM 並熄燈！若想放棄請再按一次此按鈕。
-            </div>
-          </div>
-
-          <!-- 槽位 1：關機波形 -->
-          <div class="bg-slate-900/90 border border-slate-700 rounded-xl p-4 space-y-3">
-            <div class="flex items-center justify-between">
-              <div>
-                <span class="text-sm font-bold text-white">學習槽 1 (關機專用)</span>
-                <p class="text-[11px] text-slate-400">已預載 64-bit 關機波形 (131 ticks)</p>
-              </div>
-              <span id="badgeSlot1" class="text-[10px] px-2 py-0.5 rounded-md bg-emerald-950 text-emerald-300 border border-emerald-800">已預載就緒</span>
-            </div>
-
-            <div class="grid grid-cols-3 gap-2">
-              <button id="btnRecSlot1" class="btn-press py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-amber-700/30">
-                <span id="iconRec1">🎙️</span>
-                <span id="textRec1">重新錄製</span>
-              </button>
-
-              <button id="btnPlaySlot1" class="btn-press py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold transition flex items-center justify-center gap-1">
-                ▶️ 測試發射
-              </button>
-
-              <button id="btnClearSlot1" class="btn-press py-2.5 rounded-xl bg-slate-800 hover:bg-rose-950/50 hover:text-rose-300 border border-slate-700 text-slate-400 text-xs font-semibold transition">
-                🗑️ 清空
-              </button>
-            </div>
-
-            <div id="tipSlot1" class="hidden p-2.5 rounded-lg bg-amber-950/60 border border-amber-500/50 text-[11px] text-amber-200 animate-pulse">
-              🔴 <strong>正在待命中（板子 L 燈已亮）</strong>：請拿原廠冷氣遙控器對準 VS1838B 接收模組按一下，錄完會自動停止！
-            </div>
-          </div>
-        </section>
-
-        <!-- 卡片：24 小時制定時開關機排程 -->
-        <section class="bg-card border border-cardBorder rounded-2xl p-5 shadow-lg space-y-4">
-          <div class="flex items-center justify-between pb-3 border-b border-slate-700/60">
-            <div class="flex items-center gap-2">
-              <span class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-sm font-bold">⏰</span>
-              <div>
-                <h2 class="text-sm sm:text-base font-bold text-white">脫機定時開關機排程</h2>
-                <p class="text-[11px] text-slate-400">寫入後由 DS3231 脫機獨立精準定時觸發</p>
-              </div>
-            </div>
-
-            <label class="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" id="toggleSched" class="sr-only peer" checked>
-              <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:width-5 after:transition-all peer-checked:bg-emerald-600"></div>
-            </label>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div class="bg-slate-900 border border-slate-700 rounded-xl p-3">
-              <span class="text-xs font-semibold text-emerald-400 block mb-1">每日開機時間</span>
-              <input type="time" id="inputOnTime" value="20:00" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-white font-mono text-base focus:outline-none" />
-            </div>
-
-            <div class="bg-slate-900 border border-slate-700 rounded-xl p-3">
-              <span class="text-xs font-semibold text-rose-400 block mb-1">每日關機時間</span>
-              <input type="time" id="inputOffTime" value="08:00" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-white font-mono text-base focus:outline-none" />
-            </div>
-          </div>
-
-          <div class="bg-slate-900/60 border border-slate-700/80 rounded-xl p-3 text-xs space-y-2">
-            <span class="font-semibold text-slate-300 block">定時觸發模式：</span>
-            <div class="grid grid-cols-1 gap-2">
-              <label class="flex items-center gap-2 bg-slate-800 p-2.5 rounded-lg cursor-pointer border border-sky-500/40">
-                <input type="radio" name="schedMode" value="0" checked class="text-sky-500">
-                <span class="font-bold text-sky-200">模式 0：優先重播 64-bit 實體波形 (Slot 0開 / Slot 1關，老機唯一保證！)</span>
-              </label>
-              <label class="flex items-center gap-2 bg-slate-800 p-2.5 rounded-lg cursor-pointer text-slate-400">
-                <input type="radio" name="schedMode" value="1" class="text-sky-500">
-                <span>模式 1：現代 Panasonic 216-bit 協議 (老機不適用)</span>
-              </label>
-            </div>
-          </div>
-
-          <button id="btnSaveSchedule" class="btn-press w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md transition">
-            💾 儲存並寫入定時排程 (SET_SCHED)
-          </button>
-        </section>
-
-      </div>
-
-      <!-- 右側：時鐘校準 + 監視日誌 + 實驗協議備用 -->
-      <div class="lg:col-span-6 space-y-6">
-
-        <!-- 卡片：DS3231 時間校正 -->
-        <section class="bg-card border border-cardBorder rounded-2xl p-5 shadow-lg space-y-4">
-          <div class="flex items-center justify-between pb-3 border-b border-slate-700/60">
-            <div class="flex items-center gap-2">
-              <span class="p-1.5 rounded-lg bg-purple-500/10 text-purple-400 text-sm font-bold">📅</span>
-              <div>
-                <h2 class="text-sm sm:text-base font-bold text-white">DS3231 時鐘校正</h2>
-                <p class="text-[11px] text-slate-400">一鍵同步手機/電腦時間至硬體時鐘</p>
-              </div>
-            </div>
-            <button id="btnSyncPhoneTime" class="btn-press px-2.5 py-1 rounded-lg bg-purple-950/60 hover:bg-purple-900 border border-purple-700 text-[11px] font-semibold text-purple-300 transition">
-              ⚡ 填入現在時間
-            </button>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <input type="date" id="inputRtcDate" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-xs focus:outline-none" />
-            <input type="time" id="inputRtcTime" step="1" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-xs focus:outline-none" />
-          </div>
-
-          <button id="btnSendRtcCalibrate" class="btn-press w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md transition">
-            🎯 寫入並校正時間 (SET_TIME)
-          </button>
-        </section>
-
-        <!-- 卡片：通訊成果監視面板 -->
-        <section class="bg-card border border-cardBorder rounded-2xl p-5 shadow-lg space-y-3">
-          <div class="flex items-center justify-between pb-2 border-b border-slate-700/60">
-            <div class="flex items-center gap-2">
-              <span class="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 text-sm font-bold">📡</span>
-              <div>
-                <h2 class="text-sm font-bold text-white">序列埠通訊日誌</h2>
-                <p class="text-[11px] text-slate-400">雙向命令即時追蹤</p>
-              </div>
-            </div>
-            <div class="flex items-center gap-2">
-              <button id="btnPingStatus" class="btn-press px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-semibold text-sky-400">
-                測試連線 (PING)
-              </button>
-              <button id="btnClearLog" class="text-slate-400 hover:text-slate-200 text-xs p-1">
-                🧹 清空
-              </button>
-            </div>
-          </div>
-
-          <div id="terminalLog" class="w-full h-48 bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-[11px] overflow-y-auto space-y-1 select-text">
-            <div class="text-slate-500">// 提示：關閉 Arduino IDE 監控視窗後，點擊右上角【① 點此接 USB 序列埠】即可連線...</div>
-          </div>
-        </section>
-
+      <div class="row">
+        <label for="schEn">排程生效
+          <span class="hint" id="schHint">關閉後只能手動控制</span>
+        </label>
+        <span class="switch"><input type="checkbox" id="schEn"><span></span></span>
       </div>
     </div>
-  </main>
 
-  <script>
-    const state = {
-      connType: null, // 'serial' | 'ble' | null
-      serialPort: null,
-      serialReader: null,
-      serialWriter: null,
-      bleDevice: null,
-      bleServer: null,
-      bleChar: null,
-      bleNotifyChar: null,
-      recordingSlot: -1,
-      recTimer: null,
-      recSecondsLeft: 15
-    };
+    <div class="panel">
+      <div class="row">
+        <div><span class="k">控制器時間</span>
+          <span class="hint" id="driftHint">以手機時間校正</span>
+        </div>
+        <button class="ghost" id="btnSync">校時</button>
+      </div>
+      <div class="row">
+        <label for="hbEn">每秒回報時間
+          <span class="hint">關閉可省藍牙流量</span>
+        </label>
+        <span class="switch"><input type="checkbox" id="hbEn" checked><span></span></span>
+      </div>
+    </div>
 
-    function showToast(message, type = 'info') {
-      const container = document.getElementById('toastContainer');
-      const toast = document.createElement('div');
-      const colors = {
-        info: 'bg-slate-900 border-sky-500/80 text-sky-200',
-        success: 'bg-slate-900 border-emerald-500/80 text-emerald-200',
-        warn: 'bg-slate-900 border-amber-500/80 text-amber-200',
-        error: 'bg-slate-900 border-rose-500/80 text-rose-200',
-      };
-      const icons = { info: '💡', success: '✅', warn: '⚠️', error: '❌' };
+  </fieldset>
 
-      toast.className = `flex items-center gap-2.5 px-4 py-3 rounded-xl border shadow-xl text-xs font-medium backdrop-blur-md transition-all duration-300 transform translate-y-2 opacity-0 pointer-events-auto ${colors[type] || colors.info}`;
-      toast.innerHTML = `<span>${icons[type] || 'ℹ️'}</span><span class="flex-1">${message}</span>`;
-      container.appendChild(toast);
+  <details>
+    <summary>通訊紀錄</summary>
+    <div id="log"></div>
+  </details>
+</div>
 
-      requestAnimationFrame(() => toast.classList.remove('translate-y-2', 'opacity-0'));
-      setTimeout(() => {
-        toast.classList.add('opacity-0', 'translate-y-2');
-        setTimeout(() => toast.remove(), 300);
-      }, 3500);
+<script>
+const SVC = 0xFFE0, CHR = 0xFFE1;
+const ACK_TIMEOUT = 1000, MAX_TRIES = 3;
+
+let device = null, chrRW = null, rxBuf = '';
+let queue = [], pending = null, sending = false;
+let lastTick = 0, deviceTime = null, temp = 27, power = false;
+
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2,'0');
+
+/* ---------- log ---------- */
+function log(text, cls){
+  const el = $('log');
+  const line = document.createElement('div');
+  line.className = cls || '';
+  line.textContent = new Date().toLocaleTimeString('zh-TW',{hour12:false}) + '  ' + text;
+  el.appendChild(line);
+  while(el.children.length > 120) el.removeChild(el.firstChild);
+  el.scrollTop = el.scrollHeight;
+}
+function banner(msg){
+  const b = $('banner');
+  if(!msg){ b.hidden = true; return; }
+  b.textContent = msg; b.hidden = false;
+}
+
+/* ---------- 連線 ---------- */
+async function connect(anyDevice){
+  if(!navigator.bluetooth){
+    banner('這個瀏覽器不支援 Web Bluetooth。請用 Android/電腦版 Chrome 開啟，iPhone 需用 Bluefy。');
+    return;
+  }
+  const btn = $('btnConnect');
+  btn.classList.add('busy'); btn.textContent = '選擇裝置…';
+  try{
+    const opts = anyDevice
+      ? { acceptAllDevices:true, optionalServices:[SVC] }
+      : { filters:[{services:[SVC]},{namePrefix:'HM'}], optionalServices:[SVC] };
+    device = await navigator.bluetooth.requestDevice(opts);
+    device.addEventListener('gattserverdisconnected', onDisconnect);
+
+    btn.textContent = '連線中…';
+    const server = await device.gatt.connect();
+    const svc = await server.getPrimaryService(SVC);
+    chrRW = await svc.getCharacteristic(CHR);
+    await chrRW.startNotifications();
+    chrRW.addEventListener('characteristicvaluechanged', onNotify);
+
+    banner(null);
+    $('ui').disabled = false;
+    $('btnAny').hidden = true;
+    btn.textContent = '中斷連線';
+    btn.classList.remove('busy');
+    log('已連線 ' + (device.name || '裝置'), 'rx');
+
+    send('6');                       // 取得目前狀態
+  }catch(e){
+    btn.classList.remove('busy');
+    btn.textContent = '連線冷氣控制器';
+    $('btnAny').hidden = false;
+    if(e && e.name === 'NotFoundError') log('已取消選擇裝置','er');
+    else log('連線失敗：' + (e && e.message ? e.message : e), 'er');
+  }
+}
+
+function onDisconnect(){
+  chrRW = null; queue = []; pending = null; sending = false;
+  $('ui').disabled = true;
+  $('clock').classList.remove('live');
+  $('tState').textContent = '已中斷';
+  $('btnConnect').textContent = '重新連線';
+  $('btnConnect').classList.remove('busy');
+  log('連線中斷','er');
+}
+
+/* ---------- 接收 ---------- */
+function onNotify(ev){
+  rxBuf += new TextDecoder().decode(ev.target.value);
+  let i;
+  while((i = rxBuf.search(/[\r\n]/)) >= 0){
+    const line = rxBuf.slice(0,i).trim();
+    rxBuf = rxBuf.slice(i+1);
+    if(line) handleLine(line);
+  }
+  if(rxBuf.length > 200) rxBuf = '';
+}
+
+function handleLine(line){
+  const p = line.split(',');
+  switch(p[0]){
+    case 'T':
+      deviceTime = {h:+p[1], m:+p[2], s:+p[3]};
+      lastTick = Date.now();
+      paintClock();
+      break;
+    case 'ST':
+      deviceTime = {h:+p[1], m:+p[2], s:+p[3]};
+      lastTick = Date.now();
+      $('onTime').value  = pad(+p[4]) + ':' + pad(+p[5]);
+      $('offTime').value = pad(+p[6]) + ':' + pad(+p[7]);
+      temp = +p[8];  paintTemp();
+      $('schEn').checked = p[9] === '1';
+      power = p[10] === '1'; paintPower();
+      paintClock();
+      log('← ' + line, 'rx');
+      break;
+    case 'EV':
+      if(p[1]==='1'){ power = true;  paintPower(); }
+      if(p[1]==='0'){ power = false; paintPower(); }
+      if(p[1]==='90') banner('控制器曾經斷電，時間可能不正確。請按「校時」。');
+      if(p[1]==='99') banner('控制器找不到時鐘模組，排程無法運作。');
+      log('← ' + line, 'rx');
+      break;
+    default:
+      log('← ' + line, p[0]==='ERR' ? 'er' : 'rx');
+  }
+  // 解除等待中的指令
+  if(pending && pending.match(p)){
+    clearTimeout(pending.timer);
+    const ok = p[0] !== 'ERR';
+    pending.done(ok);
+    pending = null;
+    sending = false;
+    drain();
+  }
+}
+
+/* ---------- 送出（一次一筆，等 ACK）---------- */
+function send(cmd, onDone){
+  queue.push({cmd, onDone, tries:0});
+  drain();
+}
+
+async function drain(){
+  if(sending || pending || !queue.length || !chrRW) return;
+  sending = true;
+  const job = queue[0];
+  const head = job.cmd.split(',')[0];
+
+  pending = {
+    match: p => (head === '6') ? p[0]==='ST' : (p[0]==='OK'||p[0]==='ERR') && p[1]===head,
+    done: ok => {
+      queue.shift();
+      if(job.onDone) job.onDone(ok);
+    },
+    timer: null
+  };
+
+  try{
+    await write(job.cmd + '\n');
+    log('→ ' + job.cmd, 'tx');
+  }catch(e){
+    log('送出失敗：' + e.message, 'er');
+  }
+
+  pending.timer = setTimeout(() => {
+    pending = null; sending = false;
+    job.tries++;
+    if(job.tries < MAX_TRIES){
+      log('沒有回覆，重送 ' + job.cmd, 'er');
+    }else{
+      log('放棄 ' + job.cmd + '（' + MAX_TRIES + ' 次無回應）', 'er');
+      queue.shift();
+      if(job.onDone) job.onDone(false);
     }
-
-    function showModal(title, msg, isConfirm = false, onConfirm = null) {
-      const modal = document.getElementById('customModal');
-      document.getElementById('modalTitle').innerText = title;
-      document.getElementById('modalMsg').innerText = msg;
-      const btnCancel = document.getElementById('modalBtnCancel');
-      const btnConfirm = document.getElementById('modalBtnConfirm');
-
-      btnCancel.classList.toggle('hidden', !isConfirm);
-      modal.classList.remove('hidden');
-
-      const cleanup = () => {
-        modal.classList.add('hidden');
-        btnConfirm.onclick = null;
-        btnCancel.onclick = null;
-      };
-
-      btnConfirm.onclick = () => { cleanup(); if (onConfirm) onConfirm(); };
-      btnCancel.onclick = cleanup;
-    }
-
-    function appendLog(dir, text) {
-      const terminal = document.getElementById('terminalLog');
-      const line = document.createElement('div');
-      const now = new Date();
-      const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
-
-      if (dir === 'TX') {
-        line.className = 'text-amber-300';
-        line.innerHTML = `<span class="text-slate-500">[${timeStr}]</span> <span class="font-bold">TX ▶</span> ${escapeHtml(text)}`;
-      } else if (dir === 'RX') {
-        line.className = 'text-emerald-300';
-        line.innerHTML = `<span class="text-slate-500">[${timeStr}]</span> <span class="font-bold">RX ◀</span> ${escapeHtml(text)}`;
-      } else {
-        line.className = 'text-sky-400';
-        line.innerHTML = `<span class="text-slate-500">[${timeStr}]</span> <span class="font-bold">SYS ℹ</span> ${escapeHtml(text)}`;
-      }
-
-      terminal.appendChild(line);
-      terminal.scrollTop = terminal.scrollHeight;
-    }
-
-    function escapeHtml(str) {
-      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    }
-
-    async function sendCommand(cmdStr) {
-      cmdStr = cmdStr.trim();
-      if (!cmdStr) return;
-
-      if (!state.connType) {
-        showModal('尚未連接板子！', '請先點擊右上角【接 USB 序列埠】或【藍牙 HM-10】連線後，下方按鈕才能生效！');
-        const btn = document.getElementById('btnConnectSerial');
-        btn.classList.add('animate-bounce');
-        setTimeout(() => btn.classList.remove('animate-bounce'), 2000);
-        return;
-      }
-
-      const formatted = cmdStr + '\n';
-      appendLog('TX', cmdStr);
-
-      try {
-        if (state.connType === 'serial' && state.serialWriter) {
-          const encoder = new TextEncoder();
-          await state.serialWriter.write(encoder.encode(formatted));
-        } else if (state.connType === 'ble' && state.bleChar) {
-          const encoder = new TextEncoder();
-          const rawBytes = encoder.encode(formatted);
-          
-          // HM-10 預設 BLE MTU 限制為 20 Bytes，自動實施分包發送避免溢位遺失
-          const CHUNK_SIZE = 20;
-          for (let i = 0; i < rawBytes.length; i += CHUNK_SIZE) {
-            const chunk = rawBytes.slice(i, i + CHUNK_SIZE);
-            if (state.bleChar.properties.writeWithoutResponse) {
-              await state.bleChar.writeValueWithoutResponse(chunk);
-            } else {
-              await state.bleChar.writeValue(chunk);
-            }
-            if (rawBytes.length > CHUNK_SIZE) {
-              await new Promise(res => setTimeout(res, 25)); // 25ms 間隔保護 Nano 軟串口
-            }
-          }
-        }
-      } catch (err) {
-        console.error('發送失敗:', err);
-        appendLog('SYS', `傳送失敗: ${err.message}`);
-        showToast(`指令傳送失敗: ${err.message}`, 'error');
-      }
-    }
-
-    async function connectSerial() {
-      if (!navigator.serial) {
-        showModal('瀏覽器不支援 Web Serial', '請使用 Google Chrome 或 Microsoft Edge 瀏覽器（Android 手機可使用 Chrome + USB OTG 轉接線）。');
-        return;
-      }
-
-      try {
-        appendLog('SYS', '正在請求選取序列埠...');
-        const port = await navigator.serial.requestPort();
-        await port.open({ baudRate: 9600 });
-        
-        state.serialPort = port;
-        state.connType = 'serial';
-        state.serialWriter = port.writable.getWriter();
-
-        updateConnectionUI('serial', 'USB 序列埠已連線');
-        appendLog('SYS', 'USB 序列埠 (9600 Baud) 連線成功！');
-        showToast('板子已成功連線！', 'success');
-
-        readSerialLoop();
-        setTimeout(() => sendCommand('STATUS'), 500);
-      } catch (err) {
-        if (err.name !== 'NotFoundError') {
-          console.error(err);
-          showModal('連線失敗！', `無法開啟序列埠：${err.message}\n\n【排查重點】：\n1. Arduino IDE 的「序列埠監控視窗」是否還開著？請先將它關閉！\n2. 請重新插拔一次 USB 線後再試。`);
-        }
-      }
-    }
-
-    async function readSerialLoop() {
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (state.serialPort && state.serialPort.readable) {
-        try {
-          state.serialReader = state.serialPort.readable.getReader();
-          while (true) {
-            const { value, done } = await state.serialReader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            
-            let lines = buffer.split('\n');
-            buffer = lines.pop();
-
-            for (const line of lines) {
-              const clean = line.trim();
-              if (clean) handleIncomingLine(clean);
-            }
-          }
-        } catch (err) {
-          console.warn('序列埠斷開:', err);
-          break;
-        } finally {
-          if (state.serialReader) {
-            state.serialReader.releaseLock();
-            state.serialReader = null;
-          }
-        }
-      }
-      disconnect();
-    }
-
-    async function connectBle() {
-      if (!navigator.bluetooth) {
-        showModal(
-          '瀏覽器不支援 Web Bluetooth',
-          '請確認您使用的是相容瀏覽器：\n1. 電腦或 Android：Google Chrome 或 Microsoft Edge。\n2. iPhone/iPad (iOS)：iOS Safari 原生封鎖 Web Bluetooth，請至 App Store 下載並使用【Bluefy】專用藍牙瀏覽器開啟此網頁。\n3. 請確認已開啟電腦/手機的藍牙開關。'
-        );
-        return;
-      }
-
-      try {
-        appendLog('SYS', '正在搜尋藍牙裝置 (HM-10 / 藍牙模組)...');
-
-        // HM-10 經典 UART 服務 UUID: 0xFFE0 / 0000ffe0-0000-1000-8000-00805f9b34fb
-        const device = await navigator.bluetooth.requestDevice({
-          acceptAllDevices: true,
-          optionalServices: [
-            '0000ffe0-0000-1000-8000-00805f9b34fb',
-            0xffe0,
-            '0000dfb0-0000-1000-8000-00805f9b34fb', // DFRobot Bluno
-            '6e400001-b5a3-f393-e0a9-e50e24dcca9e'  // Nordic UART
-          ]
-        });
-
-        appendLog('SYS', `已選取裝置 [${device.name || '未命名裝置'}]，正在連線 GATT 伺服器...`);
-
-        // 綁定離線監聽
-        device.addEventListener('gattserverdisconnected', onBleDisconnected);
-
-        const server = await device.gatt.connect();
-        state.bleDevice = device;
-        state.bleServer = server;
-
-        // 搜尋 HM-10 序列服務 (0xFFE0)
-        let targetService = null;
-        const candidateServices = [
-          '0000ffe0-0000-1000-8000-00805f9b34fb',
-          0xffe0,
-          '0000dfb0-0000-1000-8000-00805f9b34fb',
-          '6e400001-b5a3-f393-e0a9-e50e24dcca9e'
-        ];
-
-        for (const sUuid of candidateServices) {
-          try {
-            targetService = await server.getPrimaryService(sUuid);
-            if (targetService) break;
-          } catch (e) {}
-        }
-
-        if (!targetService) {
-          throw new Error('找不到相容的藍牙序列傳輸服務 (0xFFE0)！請確認此設備為 HM-10 / CC2541 系列。');
-        }
-
-        // 搜尋讀寫特徵值 (0xFFE1)
-        const characteristics = await targetService.getCharacteristics();
-        let writeChar = characteristics.find(c => c.properties.write || c.properties.writeWithoutResponse);
-        let notifyChar = characteristics.find(c => c.properties.notify || c.properties.indicate);
-
-        if (!writeChar && characteristics.length > 0) {
-          writeChar = characteristics[0];
-        }
-        if (!notifyChar && characteristics.length > 0) {
-          notifyChar = characteristics[0];
-        }
-
-        if (!writeChar) {
-          throw new Error('找不到可寫入的藍牙特徵值！');
-        }
-
-        state.bleChar = writeChar;
-        state.bleNotifyChar = notifyChar;
-        state.connType = 'ble';
-
-        // 啟用 RX 特徵值數據監聽通知
-        if (notifyChar && (notifyChar.properties.notify || notifyChar.properties.indicate)) {
-          await notifyChar.startNotifications();
-          let bleIncomingBuffer = '';
-          const decoder = new TextDecoder();
-
-          notifyChar.addEventListener('characteristicvaluechanged', (event) => {
-            const val = event.target.value;
-            bleIncomingBuffer += decoder.decode(val);
-            
-            let lines = bleIncomingBuffer.split('\n');
-            bleIncomingBuffer = lines.pop();
-
-            for (const line of lines) {
-              const clean = line.trim();
-              if (clean) handleIncomingLine(clean);
-            }
-          });
-        }
-
-        updateConnectionUI('ble', `藍牙已連線: ${device.name || 'HM-10'}`);
-        appendLog('SYS', `藍牙 [${device.name || 'HM-10'}] 連線成功！`);
-        showToast(`藍牙裝置已成功連接！`, 'success');
-
-        // 連線後主動請求狀態
-        setTimeout(() => sendCommand('STATUS'), 600);
-
-      } catch (err) {
-        if (err.name !== 'NotFoundError') {
-          console.error(err);
-          showModal('藍牙連線失敗', `原因：${err.message}\n\n【排查提醒】：\n1. 請確認 HM-10 模組上的紅燈是否有在閃爍（待命配對中）？\n2. 系統設定中是否有其他 App 已經佔用了該藍牙連線？`);
-        }
-      }
-    }
-
-    function onBleDisconnected() {
-      appendLog('SYS', '藍牙裝置已中斷連線');
-      disconnect();
-    }
-
-    function disconnect() {
-      if (state.serialWriter) { try { state.serialWriter.close(); } catch(e){} state.serialWriter = null; }
-      if (state.serialReader) { try { state.serialReader.cancel(); } catch(e){} state.serialReader = null; }
-      if (state.serialPort) { try { state.serialPort.close(); } catch(e){} state.serialPort = null; }
-      
-      if (state.bleNotifyChar) {
-        try { state.bleNotifyChar.stopNotifications(); } catch(e){}
-        state.bleNotifyChar = null;
-      }
-      if (state.bleDevice && state.bleDevice.gatt && state.bleDevice.gatt.connected) {
-        try { state.bleDevice.gatt.disconnect(); } catch(e){}
-      }
-      state.bleDevice = null;
-      state.bleServer = null;
-      state.bleChar = null;
-
-      state.connType = null;
-      updateConnectionUI(null, '尚未連線');
-      appendLog('SYS', '連線已中斷');
-      resetRecordingUI();
-    }
-
-    function updateConnectionUI(type, label) {
-      const tag = document.getElementById('connTag');
-      const btnDisconnect = document.getElementById('btnDisconnect');
-      const btnSerial = document.getElementById('btnConnectSerial');
-      const btnBle = document.getElementById('btnConnectBle');
-      const banner = document.getElementById('unconnectedBanner');
-
-      if (type) {
-        tag.className = 'text-[10px] px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800';
-        tag.innerText = label;
-        btnDisconnect.classList.remove('hidden');
-        btnSerial.classList.add('hidden');
-        btnBle.classList.add('hidden');
-        banner.classList.add('hidden');
-      } else {
-        tag.className = 'text-[10px] px-2 py-0.5 rounded-full bg-rose-950 text-rose-300 border border-rose-800';
-        tag.innerText = '尚未連線';
-        btnDisconnect.classList.add('hidden');
-        btnSerial.classList.remove('hidden');
-        btnBle.classList.remove('hidden');
-        banner.classList.remove('hidden');
-      }
-    }
-
-    function handleIncomingLine(line) {
-      appendLog('RX', line);
-
-      if (line.startsWith('STATUS:')) {
-        const payload = line.substring(7);
-        const parts = payload.split('|');
-        const map = {};
-        for (const p of parts) {
-          const [k, v] = p.split('=');
-          if (k && v !== undefined) map[k.trim()] = v.trim();
-        }
-
-        if (map['TIME']) document.getElementById('statusRtcTime').innerText = map['TIME'].split(' ')[1] || map['TIME'];
-        if (map['SCHED'] !== undefined) {
-          const isEn = map['SCHED'] === '1';
-          document.getElementById('toggleSched').checked = isEn;
-          document.getElementById('statusSchedMode').innerText = isEn ? `啟用 (${map['ON'] || ''}~${map['OFF'] || ''})` : '停用';
-          document.getElementById('statusSchedMode').className = `text-xs sm:text-sm font-bold ${isEn ? 'text-emerald-400' : 'text-slate-400'}`;
-        }
-        if (map['ON']) document.getElementById('inputOnTime').value = map['ON'];
-        if (map['OFF']) document.getElementById('inputOffTime').value = map['OFF'];
-
-        if (map['SLOT0']) updateSlotBadge(0, map['SLOT0'] === '1');
-        if (map['SLOT1']) updateSlotBadge(1, map['SLOT1'] === '1');
-      }
-      else if (line.startsWith('EVENT:REC_START:')) {
-        const slot = parseInt(line.split(':')[2]);
-        setRecordingState(slot, true);
-      }
-      else if (line.startsWith('EVENT:REC_SUCCESS:')) {
-        resetRecordingUI();
-        showToast('🎉 原裝遙控器波形成功學習並存入 EEPROM！', 'success');
-        sendCommand('STATUS');
-      }
-      else if (line.startsWith('EVENT:REC_TIMEOUT:') || line.startsWith('EVENT:REC_STOPPED:')) {
-        resetRecordingUI();
-        showToast('錄音已結束', 'info');
-      }
-      else if (line.startsWith('ACK:PLAYED_SLOT:')) {
-        showToast(`學習槽 ${line.split(':')[2]} 原裝實體波形已成功發射！`, 'success');
-      }
-      else if (line.startsWith('ERR:SLOT_EMPTY:')) {
-        showToast('該槽位尚未錄入任何訊號！', 'warn');
-      }
-    }
-
-    function updateSlotBadge(slot, isValid) {
-      const badge = document.getElementById(`badgeSlot${slot}`);
-      const status = document.getElementById(`statusSlot${slot}`);
-      if (isValid) {
-        badge.innerText = '已就緒 (64-bit)';
-        badge.className = 'text-[10px] px-2 py-0.5 rounded-md bg-emerald-950 text-emerald-300 border border-emerald-800';
-        status.innerText = '已預載出廠波形';
-        status.className = 'text-xs sm:text-sm font-bold text-emerald-400';
-      } else {
-        badge.innerText = '空白未錄製';
-        badge.className = 'text-[10px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400';
-        status.innerText = '空白';
-        status.className = 'text-xs sm:text-sm font-bold text-slate-400';
-      }
-    }
-
-    function setRecordingState(slot, isRec) {
-      state.recordingSlot = isRec ? slot : -1;
-      const btn = document.getElementById(`btnRecSlot${slot}`);
-      const icon = document.getElementById(`iconRec${slot}`);
-      const text = document.getElementById(`textRec${slot}`);
-      const tip = document.getElementById(`tipSlot${slot}`);
-
-      if (isRec) {
-        btn.className = 'btn-press py-2.5 rounded-xl recording-active text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-lg shadow-rose-900/50';
-        icon.innerText = '⏹️';
-        state.recSecondsLeft = 15;
-        text.innerText = `停止錄音 (${state.recSecondsLeft}s)`;
-        tip.classList.remove('hidden');
-
-        clearInterval(state.recTimer);
-        state.recTimer = setInterval(() => {
-          state.recSecondsLeft--;
-          if (state.recSecondsLeft > 0) {
-            text.innerText = `停止錄音 (${state.recSecondsLeft}s)`;
-          } else {
-            resetRecordingUI();
-          }
-        }, 1000);
-      } else {
-        btn.className = 'btn-press py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-amber-700/30';
-        icon.innerText = '🎙️';
-        text.innerText = '重新錄製';
-        tip.classList.add('hidden');
-      }
-    }
-
-    function resetRecordingUI() {
-      clearInterval(state.recTimer);
-      setRecordingState(0, false);
-      setRecordingState(1, false);
-      state.recordingSlot = -1;
-    }
-
-    function handleRecordToggle(slot) {
-      if (!state.connType) {
-        sendCommand('STATUS');
-        return;
-      }
-
-      if (state.recordingSlot === slot) {
-        sendCommand('STOP_RECORD');
-        resetRecordingUI();
-      } else {
-        resetRecordingUI();
-        setRecordingState(slot, true);
-        sendCommand(`RECORD:${slot}`);
-      }
-    }
-
-    window.addEventListener('DOMContentLoaded', () => {
-      // 雙軌連線按鈕綁定 (序列埠 + 藍牙)
-      document.getElementById('btnConnectSerial').addEventListener('click', connectSerial);
-      document.getElementById('btnConnectBle').addEventListener('click', connectBle);
-      document.getElementById('btnDisconnect').addEventListener('click', disconnect);
-
-      // 巨型一鍵開關機發射按鈕
-      document.getElementById('btnHeroOn').addEventListener('click', () => {
-        sendCommand('ON');
-        showToast('正在發射原裝 64-bit 開機訊號...', 'info');
-      });
-
-      document.getElementById('btnHeroOff').addEventListener('click', () => {
-        sendCommand('OFF');
-        showToast('正在發射原裝 64-bit 關機訊號...', 'info');
-      });
-
-      // 槽位 0 與 槽位 1 的切換式錄音按鈕
-      document.getElementById('btnRecSlot0').addEventListener('click', () => handleRecordToggle(0));
-      document.getElementById('btnRecSlot1').addEventListener('click', () => handleRecordToggle(1));
-
-      // 測試發射
-      document.getElementById('btnPlaySlot0').addEventListener('click', () => sendCommand('PLAY:0'));
-      document.getElementById('btnPlaySlot1').addEventListener('click', () => sendCommand('PLAY:1'));
-
-      // 清除按鈕
-      document.getElementById('btnClearSlot0').addEventListener('click', () => {
-        showModal('確認清空', '確定抹除學習槽 0 的波形嗎？', true, () => sendCommand('CLEAR_SLOT:0'));
-      });
-      document.getElementById('btnClearSlot1').addEventListener('click', () => {
-        showModal('確認清空', '確定抹除學習槽 1 的波形嗎？', true, () => sendCommand('CLEAR_SLOT:1'));
-      });
-
-      // 測試 PING 與清空
-      document.getElementById('btnPingStatus').addEventListener('click', () => {
-        sendCommand('PING');
-        setTimeout(() => sendCommand('STATUS'), 200);
-      });
-      document.getElementById('btnClearLog').addEventListener('click', () => {
-        document.getElementById('terminalLog').innerHTML = '<div class="text-slate-500">// 日誌已清空</div>';
-      });
-
-      // 排程儲存
-      document.getElementById('btnSaveSchedule').addEventListener('click', () => {
-        const en = document.getElementById('toggleSched').checked ? 1 : 0;
-        const [onH, onM] = document.getElementById('inputOnTime').value.split(':').map(Number);
-        const [offH, offM] = document.getElementById('inputOffTime').value.split(':').map(Number);
-        const smode = document.querySelector('input[name="schedMode"]:checked').value;
-        sendCommand(`SET_SCHED:${en},${onH},${onM},${offH},${offM},${smode},26,1,0`);
-      });
-
-      // 時間校正
-      document.getElementById('btnSyncPhoneTime').addEventListener('click', () => {
-        const now = new Date();
-        document.getElementById('inputRtcDate').value = `${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')}`;
-        document.getElementById('inputRtcTime').value = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
-        showToast('已填入本機時間', 'info');
-      });
-
-      document.getElementById('btnSendRtcCalibrate').addEventListener('click', () => {
-        const d = document.getElementById('inputRtcDate').value;
-        const t = document.getElementById('inputRtcTime').value;
-        if (!d || !t) { showToast('請填寫日期與時間', 'warn'); return; }
-        const [y, m, day] = d.split('-').map(Number);
-        const [hh, mm, ss] = t.split(':').map(Number);
-        sendCommand(`SET_TIME:${y},${m},${day},${hh},${mm},${ss || 0}`);
-      });
-    });
-  </script>
+    drain();
+  }, ACK_TIMEOUT);
+}
+
+// HM-10 一次最多 20 bytes，要切塊
+async function write(str){
+  const data = new TextEncoder().encode(str);
+  for(let i=0; i<data.length; i+=20){
+    const chunk = data.slice(i, i+20);
+    if(chrRW.writeValueWithoutResponse) await chrRW.writeValueWithoutResponse(chunk);
+    else await chrRW.writeValue(chunk);
+    if(i+20 < data.length) await new Promise(r => setTimeout(r, 25));
+  }
+}
+
+/* ---------- 畫面 ---------- */
+function paintClock(){
+  const live = deviceTime && (Date.now() - lastTick) < 4000;
+  $('clock').classList.toggle('live', !!live);
+  if(deviceTime){
+    $('tClock').innerHTML = pad(deviceTime.h) + ':' + pad(deviceTime.m) +
+      '<span class="sec">' + pad(deviceTime.s) + '</span>';
+  }
+  if(!chrRW) $('tState').textContent = '尚未連線';
+  else if(live) $('tState').textContent = '控制器時間';
+  else $('tState').textContent = deviceTime ? '時間未更新' : '等待時間回報';
+}
+function paintTemp(){ $('tempVal').textContent = temp + '°'; }
+function paintPower(){
+  $('btnOn').setAttribute('aria-pressed', power ? 'true':'false');
+  $('btnOff').setAttribute('aria-pressed', power ? 'false':'true');
+}
+
+/* ---------- 操作 ---------- */
+$('btnConnect').onclick = () => {
+  if(chrRW && device && device.gatt.connected) device.gatt.disconnect();
+  else connect(false);
+};
+$('btnAny').onclick = () => connect(true);
+
+$('btnOn').onclick  = () => send('4', ok => { if(ok){ power = true;  paintPower(); } });
+$('btnOff').onclick = () => send('5', ok => { if(ok){ power = false; paintPower(); } });
+
+$('tUp').onclick   = () => changeTemp(+1);
+$('tDown').onclick = () => changeTemp(-1);
+let tempTimer = null;
+function changeTemp(d){
+  const next = Math.min(30, Math.max(16, temp + d));
+  if(next === temp) return;
+  temp = next; paintTemp();
+  clearTimeout(tempTimer);                 // 連按只送最後一次
+  tempTimer = setTimeout(() => send('3,' + temp), 400);
+}
+
+$('onTime').onchange = e => {
+  const [h,m] = e.target.value.split(':');
+  send('1,' + (+h) + ',' + (+m));
+};
+$('offTime').onchange = e => {
+  const [h,m] = e.target.value.split(':');
+  send('2,' + (+h) + ',' + (+m));
+};
+$('schEn').onchange = e => send('8,' + (e.target.checked ? 1 : 0));
+$('hbEn').onchange  = e => send('9,' + (e.target.checked ? 1 : 0));
+
+$('btnSync').onclick = () => {
+  const d = new Date();
+  send([7, d.getFullYear(), d.getMonth()+1, d.getDate(),
+        d.getHours(), d.getMinutes(), d.getSeconds()].join(','),
+       ok => { if(ok){ banner(null); send('6'); } });
+};
+
+/* 本機補秒，讓時鐘不會卡住 */
+setInterval(() => {
+  if(deviceTime && Date.now() - lastTick > 1200 && Date.now() - lastTick < 4000){
+    const t = new Date(2000,0,1,deviceTime.h,deviceTime.m,deviceTime.s + 1);
+    deviceTime = {h:t.getHours(), m:t.getMinutes(), s:t.getSeconds()};
+    lastTick += 1000;
+  }
+  paintClock();
+}, 500);
+
+paintClock();
+</script>
 </body>
 </html>
