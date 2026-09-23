@@ -52,6 +52,8 @@
   }
   .dot{width:7px;height:7px;border-radius:50%;background:var(--bad);flex:none}
   .clock.live .dot{background:var(--cool)}
+  .clock.est time{color:var(--text);opacity:.82}
+  .clock.est .dot{background:var(--standby)}
 
   /* ---- 電源 ---- */
   .power{
@@ -247,7 +249,15 @@ const ACK_TIMEOUT = 1000, MAX_TRIES = 3;
 
 let device = null, chrRW = null, rxBuf = '';
 let queue = [], pending = null, sending = false;
-let lastTick = 0, deviceTime = null, temp = 27, power = false;
+let baseTime = null, baseAt = 0, lastRx = 0, hbOn = true;
+let temp = 27, power = false, resyncAt = 0;
+
+// 收到控制器回報的時間，重設推算基準
+function markTime(h, m, s){
+  baseTime = {h:h, m:m, s:s};
+  baseAt = Date.now();
+  lastRx = baseAt;
+}
 
 const $ = id => document.getElementById(id);
 const pad = n => String(n).padStart(2,'0');
@@ -311,6 +321,9 @@ function onDisconnect(){
   chrRW = null; queue = []; pending = null; sending = false;
   $('ui').disabled = true;
   $('clock').classList.remove('live');
+  $('clock').classList.remove('est');
+  baseTime = null;
+  $('tClock').innerHTML = '--:--<span class="sec"></span>';
   $('tState').textContent = '已中斷';
   $('btnConnect').textContent = '重新連線';
   $('btnConnect').classList.remove('busy');
@@ -333,13 +346,11 @@ function handleLine(line){
   const p = line.split(',');
   switch(p[0]){
     case 'T':
-      deviceTime = {h:+p[1], m:+p[2], s:+p[3]};
-      lastTick = Date.now();
+      markTime(+p[1], +p[2], +p[3]);
       paintClock();
       break;
     case 'ST':
-      deviceTime = {h:+p[1], m:+p[2], s:+p[3]};
-      lastTick = Date.now();
+      markTime(+p[1], +p[2], +p[3]);
       $('onTime').value  = pad(+p[4]) + ':' + pad(+p[5]);
       $('offTime').value = pad(+p[6]) + ':' + pad(+p[7]);
       temp = +p[8];  paintTemp();
@@ -424,15 +435,26 @@ async function write(str){
 
 /* ---------- 畫面 ---------- */
 function paintClock(){
-  const live = deviceTime && (Date.now() - lastTick) < 4000;
-  $('clock').classList.toggle('live', !!live);
-  if(deviceTime){
-    $('tClock').innerHTML = pad(deviceTime.h) + ':' + pad(deviceTime.m) +
-      '<span class="sec">' + pad(deviceTime.s) + '</span>';
+  const el = $('clock');
+  const fresh = baseTime && (Date.now() - lastRx) < 4000;   // 真的剛收到封包
+  const est   = baseTime && !hbOn;                          // 回報關閉，本機推算
+
+  el.classList.toggle('live', !!fresh);
+  el.classList.toggle('est', !!(est && !fresh));
+
+  // 顯示值一律由基準往後推算，不去竄改基準本身
+  if(baseTime){
+    const t = new Date(2000, 0, 1, baseTime.h, baseTime.m,
+                       baseTime.s + Math.floor((Date.now() - baseAt) / 1000));
+    $('tClock').innerHTML = pad(t.getHours()) + ':' + pad(t.getMinutes()) +
+      '<span class="sec">' + pad(t.getSeconds()) + '</span>';
   }
-  if(!chrRW) $('tState').textContent = '尚未連線';
-  else if(live) $('tState').textContent = '控制器時間';
-  else $('tState').textContent = deviceTime ? '時間未更新' : '等待時間回報';
+
+  if(!chrRW)            $('tState').textContent = '尚未連線';
+  else if(!baseTime)    $('tState').textContent = '等待時間回報';
+  else if(fresh)        $('tState').textContent = '控制器時間';
+  else if(est)          $('tState').textContent = '推算時間，每 30 秒對時';
+  else                  $('tState').textContent = '時間未更新';
 }
 function paintTemp(){ $('tempVal').textContent = temp + '°'; }
 function paintPower(){
@@ -470,7 +492,13 @@ $('offTime').onchange = e => {
   send('2,' + (+h) + ',' + (+m));
 };
 $('schEn').onchange = e => send('8,' + (e.target.checked ? 1 : 0));
-$('hbEn').onchange  = e => send('9,' + (e.target.checked ? 1 : 0));
+$('hbEn').onchange  = e => {
+  const on = e.target.checked;
+  send('9,' + (on ? 1 : 0), ok => {
+    if(ok){ hbOn = on; resyncAt = Date.now(); paintClock(); }
+    else  { e.target.checked = hbOn; }      // 控制器沒接受就把開關扳回去
+  });
+};
 
 $('btnSync').onclick = () => {
   const d = new Date();
@@ -479,14 +507,13 @@ $('btnSync').onclick = () => {
        ok => { if(ok){ banner(null); send('6'); } });
 };
 
-/* 本機補秒，讓時鐘不會卡住 */
+/* 重畫時鐘。關閉每秒回報時，每 30 秒主動對一次時避免累積誤差 */
 setInterval(() => {
-  if(deviceTime && Date.now() - lastTick > 1200 && Date.now() - lastTick < 4000){
-    const t = new Date(2000,0,1,deviceTime.h,deviceTime.m,deviceTime.s + 1);
-    deviceTime = {h:t.getHours(), m:t.getMinutes(), s:t.getSeconds()};
-    lastTick += 1000;
-  }
   paintClock();
+  if(chrRW && !hbOn && Date.now() - resyncAt > 30000){
+    resyncAt = Date.now();
+    send('6');
+  }
 }, 500);
 
 paintClock();
